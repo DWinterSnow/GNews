@@ -1,4 +1,4 @@
-// App.js - VERSION COMPLÈTE avec 3 onglets
+// App.js - VERSION HYBRIDE avec actualités réelles
 
 // État de l'application
 let currentTab = 'trending';
@@ -8,6 +8,8 @@ let allGames = {
     upcoming: [],
     recent: []
 };
+let allNews = [];
+let currentNewsFilter = 'tout';
 
 // Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
@@ -55,6 +57,8 @@ function setupEventListeners() {
         btn.addEventListener('click', (e) => {
             newsFilters.forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
+            const filter = e.target.dataset.filter;
+            filterNews(filter);
         });
     });
 
@@ -177,7 +181,7 @@ function displayFeaturedGames(games) {
     `).join('');
 }
 
-// Charger les jeux selon le type
+// Charger les jeux selon le type (INCHANGÉ)
 async function loadGames(type) {
     const endpoints = {
         trending: '/api/games/popular',
@@ -221,7 +225,7 @@ async function loadGames(type) {
     }
 }
 
-// Afficher la grille de jeux
+// Afficher la grille de jeux (INCHANGÉ)
 function displayGames(games, type) {
     const container = document.getElementById(`${type}Games`);
     if (!container) return;
@@ -253,108 +257,178 @@ function displayGames(games, type) {
     `).join('');
 }
 
-// Charger les actualités
+// ==================== NOUVELLES FONCTIONS ACTUALITÉS ====================
+
+// Charger les actualités depuis les APIs
 async function loadNews() {
     showLoading('newsList');
     
     try {
-        console.log('📥 Chargement des actualités');
-        const response = await fetch('/api/games/new-releases');
+        console.log('📰 Chargement des actualités...');
+        const response = await fetch('/api/news');
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.details || errorData.error || 'Erreur API');
+            throw new Error('Erreur lors du chargement des actualités');
         }
         
         const data = await response.json();
+        allNews = data;
         
-        if (data.results && data.results.length > 0) {
-            console.log('✅ Actualités chargées:', data.results.length);
-            displayNews(data.results);
-        } else {
-            console.warn('⚠️ Aucune actualité trouvée');
-            displayNews([]);
-        }
+        console.log(`✅ ${data.length} actualités chargées`);
+        displayNews(data);
+        
     } catch (error) {
         console.error('❌ Erreur actualités:', error);
         document.getElementById('newsList').innerHTML = `
             <p style="text-align: center; padding: 40px; color: var(--yellow);">
                 Erreur: ${error.message}
+                <br><br>
+                <button onclick="loadNews()" style="padding: 12px 24px; background: var(--purple); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600;">
+                    Réessayer
+                </button>
             </p>
         `;
     }
 }
 
+// Filtrer les actualités par catégorie
+function filterNews(filter) {
+    currentNewsFilter = filter;
+    
+    if (filter === 'tout') {
+        displayNews(allNews);
+        return;
+    }
+    
+    // Mapper les filtres aux catégories/sources
+    const filtered = allNews.filter(news => {
+        if (filter === 'guide' && news.title.toLowerCase().includes('guide')) return true;
+        if (filter === 'teste' && (news.title.toLowerCase().includes('review') || news.title.toLowerCase().includes('test'))) return true;
+        if (filter === 'patch' && (news.title.toLowerCase().includes('update') || news.title.toLowerCase().includes('patch'))) return true;
+        if (filter === 'e-sport' && (news.title.toLowerCase().includes('esport') || news.title.toLowerCase().includes('tournament'))) return true;
+        return false;
+    });
+    
+    displayNews(filtered.length > 0 ? filtered : allNews);
+}
+
 // Afficher les actualités
-function displayNews(games) {
+function displayNews(news) {
     const container = document.getElementById('newsList');
     if (!container) return;
     
-    if (games.length === 0) {
+    if (!news || news.length === 0) {
         container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow);">Aucune actualité disponible</p>';
         return;
     }
     
-    container.innerHTML = games.map(game => `
-        <div class="news-card" onclick="viewGame(${game.id})">
-            <img src="${game.background_image || 'https://via.placeholder.com/800x250/10159d/fff?text=No+Image'}" 
-                 alt="${game.name}" 
-                 class="news-image"
-                 onerror="this.src='https://via.placeholder.com/800x250/10159d/fff?text=No+Image'">
-            <div class="news-content">
-                <h3 class="news-title">${game.name}</h3>
-                <div class="genre-tags">
-                    ${game.genres ? game.genres.slice(0, 4).map(g => 
-                        `<span class="genre-tag">${g.name}</span>`
-                    ).join('') : ''}
-                </div>
-                ${game.rating ? `
-                    <div class="news-rating">
-                        ${getStarRating(game.rating)} ${game.rating}/5 • ${game.ratings_count || 0} avis
+    container.innerHTML = news.slice(0, 20).map(article => {
+        const sourceIcon = getSourceIcon(article.source);
+        const categoryBadge = getCategoryBadge(article.category);
+        
+        // Limiter la description à 100 caractères
+        const shortDescription = article.description 
+            ? article.description.substring(0, 100) + (article.description.length > 100 ? '...' : '')
+            : '';
+        
+        return `
+            <div class="news-card" onclick="window.open('${article.url}', '_blank')">
+                <img src="${article.image}" 
+                     alt="${article.title}" 
+                     class="news-image"
+                     onerror="this.src='https://via.placeholder.com/800x250/10159d/fff?text=Gaming+News'">
+                <div class="news-content">
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                        <span class="source-badge">${sourceIcon} ${article.author}</span>
+                        ${categoryBadge}
                     </div>
-                ` : ''}
-                ${game.released ? `
-                    <p style="margin-top: 10px; color: var(--cyan);">📅 Sortie: ${formatDate(game.released)}</p>
-                ` : ''}
+                    <h3 class="news-title">${article.title}</h3>
+                    ${shortDescription ? `
+                        <p style="color: rgba(255,255,255,0.7); font-size: 13px; line-height: 1.5; margin-top: 8px;">
+                            ${shortDescription}
+                        </p>
+                    ` : ''}
+                    <p style="margin-top: auto; padding-top: 10px; color: var(--cyan); font-size: 12px;">
+                        📅 ${formatDate(article.publishedAt)}
+                    </p>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
-// Rechercher des jeux
+// Obtenir l'icône de la source
+function getSourceIcon(source) {
+    const icons = {
+        'reddit': '💬',
+        'rss': '📰',
+        'guardian': '🗞️'
+    };
+    return icons[source] || '📰';
+}
+
+// Obtenir le badge de catégorie
+function getCategoryBadge(category) {
+    const badges = {
+        'article': '<span class="genre-tag">Article</span>',
+        'discussion': '<span class="genre-tag">Discussion</span>',
+        'news': '<span class="genre-tag">News</span>'
+    };
+    return badges[category] || '';
+}
+
+// Rechercher des actualités
 async function performSearch() {
     const query = document.getElementById('searchInput').value;
     
     if (!query.trim()) {
-        loadGames(currentTab);
-        loadNews();
+        displayNews(allNews);
         return;
     }
     
-    showLoading('newsList');
+    // Filtrer les actualités localement
+    const filtered = allNews.filter(news => 
+        news.title.toLowerCase().includes(query.toLowerCase()) ||
+        news.description.toLowerCase().includes(query.toLowerCase())
+    );
     
-    try {
-        console.log('🔍 Recherche:', query);
-        const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
+    if (filtered.length > 0) {
+        displayNews(filtered);
+    } else {
+        // Si aucun résultat local, chercher dans RAWG
+        showLoading('newsList');
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.details || errorData.error || 'Erreur recherche');
+        try {
+            console.log('🔍 Recherche:', query);
+            const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
+            
+            if (!response.ok) {
+                throw new Error('Erreur recherche');
+            }
+            
+            const data = await response.json();
+            
+            if (data.results && data.results.length > 0) {
+                // Convertir les jeux en format actualité
+                const gamesAsNews = data.results.map(game => ({
+                    source: 'rawg',
+                    title: game.name,
+                    description: `Note: ${game.rating}/5 • Sortie: ${game.released}`,
+                    url: `game-details.html?id=${game.id}`,
+                    image: game.background_image,
+                    publishedAt: game.released,
+                    author: 'RAWG',
+                    category: 'game'
+                }));
+                
+                displayNews(gamesAsNews);
+            } else {
+                displayNews([]);
+            }
+        } catch (error) {
+            console.error('❌ Erreur recherche:', error);
+            displayNews([]);
         }
-        
-        const data = await response.json();
-        
-        if (data.results) {
-            console.log('✅ Résultats:', data.results.length);
-            displayNews(data.results);
-        }
-    } catch (error) {
-        console.error('❌ Erreur recherche:', error);
-        document.getElementById('newsList').innerHTML = `
-            <p style="text-align: center; padding: 40px; color: var(--yellow);">
-                Erreur: ${error.message}
-            </p>
-        `;
     }
 }
 
@@ -421,9 +495,6 @@ function showError(message) {
                 <div style="text-align: center; padding: 40px; color: var(--yellow);">
                     <p style="font-size: 24px; margin-bottom: 20px;">⚠️</p>
                     <p style="font-size: 18px; margin-bottom: 10px;">${message}</p>
-                    <p style="font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 20px;">
-                        Vérifiez votre clé API RAWG ou testez avec /api/test-rawg
-                    </p>
                     <button onclick="location.reload()" 
                             style="margin-top: 20px; padding: 12px 25px; background: var(--purple); 
                                    color: white; border: none; border-radius: 10px; cursor: pointer; 

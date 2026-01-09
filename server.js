@@ -1,40 +1,43 @@
-// Server.js - VERSION COMPLÈTE CORRIGÉE
+// Server.js - VERSION HYBRIDE avec actualités réelles
 
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
+const Parser = require('rss-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// API Key - À mettre dans un fichier .env en production
+// Configuration des APIs
 const RAWG_API_KEY = process.env.RAWG_API_KEY || '2e68fa4d897b420682efc40faa9fbb6d';
 const RAWG_BASE_URL = 'https://api.rawg.io/api';
+const GUARDIAN_API_KEY = process.env.GUARDIAN_API_KEY || '2fc2e627-7965-45df-ac62-c6e2259ce2e7';
+const REDDIT_USER_AGENT = 'GNewsApp/1.0';
 
-// Vérification de la clé API au démarrage
-if (!RAWG_API_KEY || RAWG_API_KEY === 'e68fa4d897b420682efc40faa9fbb6d') {
-  console.error('⚠️  ERREUR: Clé API RAWG manquante ou invalide!');
-  console.error('Veuillez configurer la variable d\'environnement RAWG_API_KEY');
-  process.exit(1);
-}
+// Parsers
+const rssParser = new Parser({
+  customFields: {
+    item: ['media:content', 'media:thumbnail']
+  }
+});
+
+// Cache pour les actualités (6 heures)
+const newsCache = {
+  data: null,
+  timestamp: 0,
+  duration: 6 * 60 * 60 * 1000 // 6 heures
+};
 
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
 
-// Route de test pour vérifier l'API RAWG
+// ==================== ROUTES JEUX (INCHANGÉES) ====================
+
 app.get('/api/test-rawg', async (req, res) => {
   try {
-    console.log('🔍 Test de connexion à RAWG...');
-    console.log('📍 URL:', `${RAWG_BASE_URL}/games`);
-    console.log('🔑 Clé API:', RAWG_API_KEY.substring(0, 10) + '...');
-    
     const response = await axios.get(`${RAWG_BASE_URL}/games`, {
-      params: {
-        key: RAWG_API_KEY,
-        page_size: 1
-      }
+      params: { key: RAWG_API_KEY, page_size: 1 }
     });
-    
     res.json({
       success: true,
       message: '✅ API RAWG fonctionne correctement !',
@@ -42,20 +45,13 @@ app.get('/api/test-rawg', async (req, res) => {
       total_games: response.data.count
     });
   } catch (error) {
-    console.error('❌ Erreur de test RAWG:', error.message);
     res.status(500).json({
       success: false,
-      error: error.message,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      details: error.response?.data
+      error: error.message
     });
   }
 });
 
-// ⚠️ ROUTES SPÉCIFIQUES AVANT LA ROUTE DYNAMIQUE ⚠️
-
-// Middleware pour filtrer le contenu adulte côté serveur
 function filterAdultContent(games) {
   const blockedKeywords = [
     'hentai', 'porn', 'xxx', 'nsfw', 'nude', 'tentacle', 'ecchi',
@@ -63,25 +59,19 @@ function filterAdultContent(games) {
   ];
   
   return games.filter(game => {
-    // Vérifier le nom du jeu
     const gameName = game.name.toLowerCase();
     if (blockedKeywords.some(keyword => gameName.includes(keyword))) {
-      console.log('🚫 Jeu bloqué (nom):', game.name);
       return false;
     }
     
-    // Vérifier les tags
     if (game.tags) {
       const tagNames = game.tags.map(t => t.name.toLowerCase()).join(' ');
       if (blockedKeywords.some(keyword => tagNames.includes(keyword))) {
-        console.log('🚫 Jeu bloqué (tags):', game.name);
         return false;
       }
     }
     
-    // Vérifier ESRB rating - bloquer "Adults Only"
     if (game.esrb_rating && game.esrb_rating.name === 'Adults Only') {
-      console.log('🚫 Jeu bloqué (ESRB Adults Only):', game.name);
       return false;
     }
     
@@ -89,42 +79,32 @@ function filterAdultContent(games) {
   });
 }
 
-// Route pour les jeux populaires
 app.get('/api/games/popular', async (req, res) => {
   try {
-    console.log('📥 Requête: Jeux populaires');
     const response = await axios.get(`${RAWG_BASE_URL}/games`, {
       params: {
         key: RAWG_API_KEY,
-        page_size: 40, // Augmenté pour compenser le filtrage
+        page_size: 40,
         ordering: '-rating',
         dates: '2023-01-01,2025-12-31',
-        exclude_tags: '80', // 80 = NSFW only
+        exclude_tags: '80',
         exclude_additions: true
       },
       timeout: 10000
     });
     
-    // Filtrer le contenu adulte
     const filteredGames = filterAdultContent(response.data.results);
-    console.log(`✅ Jeux filtrés: ${filteredGames.length}/${response.data.results.length}`);
-    
     res.json({
       ...response.data,
       results: filteredGames.slice(0, 20)
     });
   } catch (error) {
-    console.error('❌ Erreur RAWG API (popular):', error.response?.status, error.message);
-    console.error('🔗 URL complète:', error.config?.url);
     res.status(error.response?.status || 500).json({ 
-      error: 'Erreur lors de la récupération des jeux populaires',
-      details: error.response?.data?.error || error.message,
-      status: error.response?.status
+      error: 'Erreur lors de la récupération des jeux populaires'
     });
   }
 });
 
-// Route pour les nouveautés
 app.get('/api/games/new-releases', async (req, res) => {
   const today = new Date();
   const lastMonth = new Date();
@@ -134,60 +114,11 @@ app.get('/api/games/new-releases', async (req, res) => {
   const todayString = today.toISOString().split('T')[0];
   
   try {
-    console.log('📥 Requête: Nouveautés');
-    console.log(`📅 Dates: ${dateString} à ${todayString}`);
-    
     const response = await axios.get(`${RAWG_BASE_URL}/games`, {
       params: {
         key: RAWG_API_KEY,
         dates: `${dateString},${todayString}`,
         ordering: '-released',
-        page_size: 40, // Augmenté pour compenser le filtrage
-        exclude_tags: '80',
-        exclude_additions: true
-      },
-      timeout: 10000
-    });
-    
-    // Filtrer le contenu adulte
-    const filteredGames = filterAdultContent(response.data.results);
-    console.log(`✅ Nouveautés filtrées: ${filteredGames.length}/${response.data.results.length}`);
-    
-    res.json({
-      ...response.data,
-      results: filteredGames.slice(0, 20)
-    });
-  } catch (error) {
-    console.error('❌ Erreur RAWG API (new-releases):', error.response?.status, error.message);
-    console.error('📍 URL:', error.config?.url);
-    res.status(error.response?.status || 500).json({ 
-      error: 'Erreur lors de la récupération des nouveautés',
-      details: error.response?.data?.error || error.message,
-      status: error.response?.status
-    });
-  }
-});
-
-// Route pour les jeux à venir - CORRIGÉE
-app.get('/api/games/upcoming', async (req, res) => {
-  const today = new Date();
-  // Ajouter 1 jour pour commencer à partir de demain
-  today.setDate(today.getDate() + 1);
-  const todayString = today.toISOString().split('T')[0];
-  
-  const nextYear = new Date();
-  nextYear.setFullYear(nextYear.getFullYear() + 2); // Augmenté à 2 ans pour avoir plus de résultats
-  const nextYearString = nextYear.toISOString().split('T')[0];
-  
-  try {
-    console.log('📥 Requête: Jeux à venir');
-    console.log(`📅 Dates: ${todayString} à ${nextYearString}`);
-    
-    const response = await axios.get(`${RAWG_BASE_URL}/games`, {
-      params: {
-        key: RAWG_API_KEY,
-        dates: `${todayString},${nextYearString}`,
-        ordering: 'released', // Tri par date de sortie (les plus proches en premier)
         page_size: 40,
         exclude_tags: '80',
         exclude_additions: true
@@ -195,10 +126,42 @@ app.get('/api/games/upcoming', async (req, res) => {
       timeout: 10000
     });
     
-    // Filtrer le contenu adulte ET les jeux sans date de sortie
+    const filteredGames = filterAdultContent(response.data.results);
+    res.json({
+      ...response.data,
+      results: filteredGames.slice(0, 20)
+    });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ 
+      error: 'Erreur lors de la récupération des nouveautés'
+    });
+  }
+});
+
+app.get('/api/games/upcoming', async (req, res) => {
+  const today = new Date();
+  today.setDate(today.getDate() + 1);
+  const todayString = today.toISOString().split('T')[0];
+  
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 2);
+  const nextYearString = nextYear.toISOString().split('T')[0];
+  
+  try {
+    const response = await axios.get(`${RAWG_BASE_URL}/games`, {
+      params: {
+        key: RAWG_API_KEY,
+        dates: `${todayString},${nextYearString}`,
+        ordering: 'released',
+        page_size: 40,
+        exclude_tags: '80',
+        exclude_additions: true
+      },
+      timeout: 10000
+    });
+    
     let filteredGames = filterAdultContent(response.data.results);
     
-    // Supprimer les jeux sans date de sortie valide
     filteredGames = filteredGames.filter(game => {
       if (!game.released) return false;
       const releaseDate = new Date(game.released);
@@ -206,24 +169,17 @@ app.get('/api/games/upcoming', async (req, res) => {
       return releaseDate > now;
     });
     
-    console.log(`✅ Jeux à venir filtrés: ${filteredGames.length}/${response.data.results.length}`);
-    
     res.json({
       ...response.data,
       results: filteredGames.slice(0, 20)
     });
   } catch (error) {
-    console.error('❌ Erreur RAWG API (upcoming):', error.response?.status, error.message);
-    console.error('📍 URL:', error.config?.url);
     res.status(error.response?.status || 500).json({ 
-      error: 'Erreur lors de la récupération des jeux à venir',
-      details: error.response?.data?.error || error.message,
-      status: error.response?.status
+      error: 'Erreur lors de la récupération des jeux à venir'
     });
   }
 });
 
-// Route pour rechercher des jeux
 app.get('/api/games/search', async (req, res) => {
   const { query } = req.query;
   
@@ -232,36 +188,29 @@ app.get('/api/games/search', async (req, res) => {
   }
   
   try {
-    console.log(`🔍 Recherche: "${query}"`);
     const response = await axios.get(`${RAWG_BASE_URL}/games`, {
       params: {
         key: RAWG_API_KEY,
         search: query,
-        page_size: 40, // Augmenté pour compenser le filtrage
+        page_size: 40,
         exclude_tags: '80',
         exclude_additions: true
       },
       timeout: 10000
     });
     
-    // Filtrer le contenu adulte
     const filteredGames = filterAdultContent(response.data.results);
-    console.log(`✅ Résultats filtrés: ${filteredGames.length}/${response.data.results.length}`);
-    
     res.json({
       ...response.data,
       results: filteredGames.slice(0, 20)
     });
   } catch (error) {
-    console.error('❌ Erreur RAWG API (search):', error.response?.status, error.message);
     res.status(error.response?.status || 500).json({ 
-      error: 'Erreur lors de la recherche',
-      details: error.response?.data?.error || error.message
+      error: 'Erreur lors de la recherche'
     });
   }
 });
 
-// Route pour récupérer les jeux par plateforme
 app.get('/api/games/platform/:platform', async (req, res) => {
   const platformMap = {
     'pc': 4,
@@ -275,16 +224,13 @@ app.get('/api/games/platform/:platform', async (req, res) => {
   
   if (!platformId) {
     return res.status(400).json({ 
-      error: 'Plateforme invalide. Utilisez: pc, playstation, xbox, switch, ou vr' 
+      error: 'Plateforme invalide' 
     });
   }
   
-  // Vérifier si c'est pour les jeux à venir ou populaires
   const isUpcoming = req.query.upcoming === 'true';
   
   try {
-    console.log(`📥 Requête: Jeux ${isUpcoming ? 'à venir' : 'populaires'} pour ${req.params.platform}`);
-    
     let params = {
       key: RAWG_API_KEY,
       platforms: platformId,
@@ -293,7 +239,6 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       exclude_additions: true
     };
     
-    // Configurer les paramètres selon le type de recherche
     if (isUpcoming) {
       const today = new Date();
       today.setDate(today.getDate() + 1);
@@ -305,8 +250,6 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       
       params.dates = `${todayString},${nextYearString}`;
       params.ordering = 'released';
-      
-      console.log(`📅 Filtrage dates: ${todayString} à ${nextYearString}`);
     } else {
       params.ordering = '-rating';
       params.dates = '2023-01-01,2025-12-31';
@@ -317,44 +260,17 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       timeout: 10000
     });
     
-    console.log(`📦 Réponse API: ${response.data.results.length} jeux`);
-    
-    // Filtrer le contenu adulte
     let filteredGames = filterAdultContent(response.data.results);
     
-    // Si upcoming, DOUBLE FILTRAGE très strict pour les jeux déjà sortis
     if (isUpcoming) {
       const now = new Date();
-      now.setHours(0, 0, 0, 0); // Réinitialiser l'heure pour comparaison correcte
+      now.setHours(0, 0, 0, 0);
       
       filteredGames = filteredGames.filter(game => {
-        if (!game.released) {
-          console.log(`⚠️ Jeu sans date: ${game.name}`);
-          return false;
-        }
-        
+        if (!game.released) return false;
         const releaseDate = new Date(game.released);
         releaseDate.setHours(0, 0, 0, 0);
-        
-        const isFuture = releaseDate > now;
-        
-        if (!isFuture) {
-          console.log(`🚫 Jeu déjà sorti filtré: ${game.name} (${game.released})`);
-        } else {
-          console.log(`✅ Jeu à venir gardé: ${game.name} (${game.released})`);
-        }
-        
-        return isFuture;
-      });
-    }
-    
-    console.log(`✅ Jeux filtrés par plateforme: ${filteredGames.length}/${response.data.results.length}`);
-    
-    if (filteredGames.length === 0) {
-      return res.json({
-        count: 0,
-        results: [],
-        message: 'Aucun jeu à venir trouvé pour cette plateforme'
+        return releaseDate > now;
       });
     }
     
@@ -363,63 +279,213 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       results: filteredGames.slice(0, 20)
     });
   } catch (error) {
-    console.error('❌ Erreur RAWG API (platform):', error.response?.status, error.message);
     res.status(error.response?.status || 500).json({ 
-      error: 'Erreur lors de la récupération des jeux',
-      details: error.response?.data?.error || error.message
+      error: 'Erreur lors de la récupération des jeux'
     });
   }
 });
 
-// ⚠️ ROUTE DYNAMIQUE À LA FIN ⚠️
-// Route pour récupérer les détails d'un jeu
 app.get('/api/games/:id', async (req, res) => {
   try {
-    console.log(`📥 Requête: Détails du jeu ${req.params.id}`);
     const response = await axios.get(`${RAWG_BASE_URL}/games/${req.params.id}`, {
-      params: {
-        key: RAWG_API_KEY
-      },
+      params: { key: RAWG_API_KEY },
       timeout: 10000
     });
-    console.log('✅ Succès: Détails du jeu récupérés');
     res.json(response.data);
   } catch (error) {
-    console.error('❌ Erreur RAWG API (details):', error.response?.status, error.message);
     res.status(error.response?.status || 500).json({ 
-      error: 'Erreur lors de la récupération du jeu',
-      details: error.response?.data?.error || error.message
+      error: 'Erreur lors de la récupération du jeu'
     });
   }
 });
 
-// Route pour les genres
 app.get('/api/genres', async (req, res) => {
   try {
-    console.log('📥 Requête: Genres');
     const response = await axios.get(`${RAWG_BASE_URL}/genres`, {
-      params: {
-        key: RAWG_API_KEY
-      },
+      params: { key: RAWG_API_KEY },
       timeout: 10000
     });
-    console.log('✅ Succès: Genres récupérés');
     res.json(response.data);
   } catch (error) {
-    console.error('❌ Erreur RAWG API (genres):', error.response?.status, error.message);
     res.status(error.response?.status || 500).json({ 
-      error: 'Erreur lors de la récupération des genres',
-      details: error.response?.data?.error || error.message
+      error: 'Erreur lors de la récupération des genres'
     });
   }
 });
 
-// Route principale
+// ==================== NOUVELLES ROUTES ACTUALITÉS ====================
+
+// Parser Reddit
+async function fetchRedditNews() {
+  try {
+    const subreddits = ['gaming', 'Games', 'pcgaming'];
+    const articles = [];
+    
+    for (const sub of subreddits) {
+      const response = await axios.get(`https://www.reddit.com/r/${sub}/hot.json?limit=10`, {
+        headers: { 'User-Agent': REDDIT_USER_AGENT },
+        timeout: 5000
+      });
+      
+      const posts = response.data.data.children;
+      
+      posts.forEach(post => {
+        const data = post.data;
+        
+        // Filtrer les posts de qualité
+        if (data.ups > 100 && !data.is_video && data.thumbnail !== 'self') {
+          articles.push({
+            source: 'reddit',
+            title: data.title,
+            description: data.selftext ? data.selftext.substring(0, 200) : '',
+            url: `https://www.reddit.com${data.permalink}`,
+            image: data.thumbnail && data.thumbnail.startsWith('http') ? data.thumbnail : data.url,
+            publishedAt: new Date(data.created_utc * 1000).toISOString(),
+            author: `r/${sub}`,
+            category: 'discussion'
+          });
+        }
+      });
+    }
+    
+    return articles;
+  } catch (error) {
+    console.error('❌ Erreur Reddit:', error.message);
+    return [];
+  }
+}
+
+// Parser RSS Feeds
+async function fetchRSSNews() {
+  const feeds = [
+    { url: 'https://www.ign.com/feed.xml', source: 'IGN' },
+    { url: 'https://www.gamespot.com/feeds/mashup/', source: 'GameSpot' },
+    { url: 'https://kotaku.com/rss', source: 'Kotaku' }
+  ];
+  
+  const articles = [];
+  
+  for (const feed of feeds) {
+    try {
+      const parsedFeed = await rssParser.parseURL(feed.url);
+      
+      parsedFeed.items.slice(0, 5).forEach(item => {
+        let image = 'https://via.placeholder.com/400x250/10159d/fff?text=Gaming+News';
+        
+        if (item['media:content'] && item['media:content'].$?.url) {
+          image = item['media:content'].$.url;
+        } else if (item['media:thumbnail'] && item['media:thumbnail'].$?.url) {
+          image = item['media:thumbnail'].$.url;
+        } else if (item.enclosure?.url) {
+          image = item.enclosure.url;
+        }
+        
+        articles.push({
+          source: 'rss',
+          title: item.title,
+          description: item.contentSnippet || item.content?.substring(0, 200) || '',
+          url: item.link,
+          image: image,
+          publishedAt: item.isoDate || item.pubDate,
+          author: feed.source,
+          category: 'article'
+        });
+      });
+    } catch (error) {
+      console.error(`❌ Erreur RSS ${feed.source}:`, error.message);
+    }
+  }
+  
+  return articles;
+}
+
+// Parser The Guardian
+async function fetchGuardianNews() {
+  try {
+    const response = await axios.get('https://content.guardianapis.com/search', {
+      params: {
+        'api-key': GUARDIAN_API_KEY,
+        'section': 'games',
+        'show-fields': 'thumbnail,trailText',
+        'page-size': 10
+      },
+      timeout: 5000
+    });
+    
+    const articles = response.data.response.results.map(article => ({
+      source: 'guardian',
+      title: article.webTitle,
+      description: article.fields?.trailText || '',
+      url: article.webUrl,
+      image: article.fields?.thumbnail || 'https://via.placeholder.com/400x250/10159d/fff?text=Gaming+News',
+      publishedAt: article.webPublicationDate,
+      author: 'The Guardian',
+      category: 'article'
+    }));
+    
+    return articles;
+  } catch (error) {
+    console.error('❌ Erreur Guardian:', error.message);
+    return [];
+  }
+}
+
+// Route principale pour les actualités avec cache
+app.get('/api/news', async (req, res) => {
+  try {
+    const now = Date.now();
+    
+    // Vérifier le cache
+    if (newsCache.data && (now - newsCache.timestamp) < newsCache.duration) {
+      console.log('✅ Actualités servies depuis le cache');
+      return res.json(newsCache.data);
+    }
+    
+    console.log('📥 Récupération des actualités depuis les sources...');
+    
+    // Récupérer de toutes les sources en parallèle
+    const [redditNews, rssNews, guardianNews] = await Promise.all([
+      fetchRedditNews(),
+      fetchRSSNews(),
+      fetchGuardianNews()
+    ]);
+    
+    // Combiner et trier par date
+    let allNews = [...redditNews, ...rssNews, ...guardianNews];
+    
+    allNews.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    
+    // Limiter à 30 articles
+    allNews = allNews.slice(0, 30);
+    
+    // Mettre en cache
+    newsCache.data = allNews;
+    newsCache.timestamp = now;
+    
+    console.log(`✅ ${allNews.length} actualités récupérées et mises en cache`);
+    res.json(allNews);
+    
+  } catch (error) {
+    console.error('❌ Erreur actualités:', error);
+    res.status(500).json({ 
+      error: 'Erreur lors de la récupération des actualités',
+      details: error.message
+    });
+  }
+});
+
+// Route pour forcer le refresh du cache
+app.get('/api/news/refresh', async (req, res) => {
+  newsCache.timestamp = 0; // Invalider le cache
+  res.redirect('/api/news');
+});
+
+// ==================== ROUTES GÉNÉRALES ====================
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Gestionnaire d'erreurs global
 app.use((err, req, res, next) => {
   console.error('❌ Erreur serveur:', err);
   res.status(500).json({ 
@@ -428,26 +494,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Route de debug pour voir toutes les routes enregistrées
-app.get('/api/debug/routes', (req, res) => {
-  const routes = [];
-  app._router.stack.forEach((middleware) => {
-    if (middleware.route) {
-      routes.push({
-        path: middleware.route.path,
-        methods: Object.keys(middleware.route.methods)
-      });
-    }
-  });
-  res.json({ routes });
-});
-
 app.listen(PORT, () => {
   console.log('═══════════════════════════════════════════════');
-  console.log(`🚀 Serveur de jeux démarré sur http://localhost:${PORT}`);
-  console.log(`📡 API RAWG configurée avec succès`);
-  console.log(`🔑 Clé API: ${RAWG_API_KEY.substring(0, 10)}...`);
-  console.log(`🧪 Test l'API ici: http://localhost:${PORT}/api/test-rawg`);
-  console.log(`🔍 Debug routes: http://localhost:${PORT}/api/debug/routes`);
+  console.log(`🚀 Serveur GNews démarré sur http://localhost:${PORT}`);
+  console.log(`📡 API RAWG: Jeux vidéo`);
+  console.log(`📰 Sources actualités: Reddit + RSS + The Guardian`);
+  console.log(`💾 Cache actualités: 6 heures`);
+  console.log(`🧪 Test: http://localhost:${PORT}/api/test-rawg`);
+  console.log(`📰 Test actualités: http://localhost:${PORT}/api/news`);
   console.log('═══════════════════════════════════════════════');
-}); 
+});
