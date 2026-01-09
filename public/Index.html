@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GNews - Actualités Gaming</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="logo">GNews</h1>
+                <nav class="nav">
+                    <ul>
+                        <li><a href="#" class="nav-link">Accueil</a></li>
+                        <li><a href="#" class="nav-link">Actualités</a></li>
+                        <li><a href="#" class="nav-link">Jeux</a></li>
+                        <li><a href="#" class="nav-link">Communauté</a></li>
+                    </ul>
+                </nav>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <input type="search" placeholder="Quel jeu vous cherchez ?" id="searchInput">
+                        <button class="search-btn" onclick="performSearch()">🔍</button>
+                    </div>
+                    <button class="icon-btn">
+                        <svg width="32" height="32" viewBox="0 0 50 50" fill="#fcc419">
+                            <path d="M25 0c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm-5.6 6.1C14.8 8 12 12.5 12 18c0 11-3.8 13.8-6.1 15.4-1 .7-1.9 1.4-1.9 2.6 0 4.2 6.3 6 21 6s21-1.8 21-6c0-1.2-.9-1.9-1.9-2.6C41.8 31.8 38 29 38 18c0-5.6-2.8-10-7.4-11.9C29.7 8.4 27.6 10 25 10s-4.8-1.6-5.6-3.9zM19 43.9v.1c0 3.3 2.7 6 6 6s6-2.7 6-6v-.1c-1.9.1-3.9.1-6 .1s-4.1 0-6-.1z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn">
+                        <svg width="32" height="32" viewBox="0 0 50 50" fill="#fcc419">
+                            <path d="M22.5 11l2.9 7.1c1.2 3 3.6 5.3 6.5 6.5l7.1 2.9c1.3.5 1.3 2.4 0 2.9l-7.1 2.9c-3 1.2-5.3 3.6-6.5 6.5l-2.9 7.1c-.5 1.3-2.4 1.3-2.9 0l-2.9-7.1c-1.2-3-3.6-5.3-6.5-6.5l-7.1-2.9c-1.3-.5-1.3-2.4 0-2.9l7.1-2.9c3-1.2 5.3-3.6 6.5-6.5l2.9-7.1c.5-1.3 2.4-1.3 2.9 0zm17.4-8.3l.8 2.4c.7 1.9 2.2 3.4 4.1 4.1l2.4.8c.9.3.9 1.6 0 1.9l-2.4.8c-1.9.7-3.4 2.2-4.1 4.1l-.8 2.4c-.3.9-1.6.9-1.9 0l-.8-2.4c-.7-1.9-2.2-3.4-4.1-4.1l-2.4-.8c-.9-.3-.9-1.6 0-1.9l2.4-.8c1.9-.7 3.4-2.2 4.1-4.1l.8-2.4c.3-.9 1.6-.9 1.9 0z"/>
+                        </svg>
+                    </button>
+                    <button class="icon-btn">👤</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="section-highlight">
+        <div class="container">
+            <h2 class="section-title">
+                <span class="icon">
+                    <svg width="28" height="28" viewBox="0 0 32 32" fill="#eac035">
+                        <path d="M28.1 18.1v7.9c0 .6-.3 1-1 1-.2 0-.6-.4-1.1-.9V4.9c.5-.5.9-.9 1.1-.9.7 0 1 .4 1 1v8.1c1.4 0 2.6 1.1 2.6 2.5s-1.3 2.5-2.6 2.5zM12 20h0V11c6.9 0 10.9-3 13.1-5.1v19.2c-2.1-2.1-6.2-5.1-13.1-5.1zM8 28l-2-7.9H4s-.6-1.3-.9-3h-1.1c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h1.1c.3-1.6.9-3 .9-3h7v9H9l.3 1h1l.5 2h-1l1.2 4.9H8z"/>
+                    </svg>
+                </span>
+                Dernières actualités à ne pas manquer
+            </h2>
+            <div class="featured-grid" id="featuredArticles"></div>
+        </div>
+    </section>
+
+    <section class="section-dark">
+        <div class="container">
+            <div class="platform-tabs">
+                <button class="tab-btn" onclick="switchTab('upcoming')">
+                    <span class="icon">🎮</span>
+                    Prochaines sorties
+                </button>
+                <button class="tab-btn active" onclick="switchTab('trending')">
+                    <span class="icon">🏆</span>
+                    Top Tendance
+                </button>
+                <button class="tab-btn" onclick="switchTab('recent')">
+                    <span class="icon">🆕</span>
+                    Sorties Récentes
+                </button>
+            </div>
+
+            <div class="platform-filters">
+                <button class="filter-btn active" data-platform="tout" onclick="filterByPlatform('tout')">Tout</button>
+                <button class="filter-btn" data-platform="pc" onclick="filterByPlatform('pc')">PC</button>
+                <button class="filter-btn" data-platform="vr" onclick="filterByPlatform('vr')">VR</button>
+                <button class="filter-btn" data-platform="playstation" onclick="filterByPlatform('playstation')">PlayStation</button>
+                <button class="filter-btn" data-platform="xbox" onclick="filterByPlatform('xbox')">Xbox</button>
+                <button class="filter-btn" data-platform="switch" onclick="filterByPlatform('switch')">Switch</button>
+            </div>
+
+            <div id="upcomingContent" class="tab-content">
+                <div class="games-grid" id="upcomingGames">
+                    <div class="loading">⏳ Chargement des prochaines sorties...</div>
+                </div>
+            </div>
+
+            <div id="trendingContent" class="tab-content active">
+                <div class="games-grid" id="trendingGames">
+                    <div class="loading">⏳ Chargement des jeux populaires...</div>
+                </div>
+            </div>
+
+            <div id="recentContent" class="tab-content">
+                <div class="games-grid" id="recentGames">
+                    <div class="loading">⏳ Chargement des sorties récentes...</div>
+                </div>
+            </div>
+        </div
+    </section>
+
+    <section class="section-news">
+        <div class="container">
+            <h2 class="section-title">
+                <span class="icon">🎮</span>
+                Actualité des Jeux
+            </h2>
+            <div class="news-filters">
+                <button class="filter-btn active" data-filter="tout">Tout</button>
+                <button class="filter-btn" data-filter="guide">Guide</button>
+                <button class="filter-btn" data-filter="teste">Teste</button>
+                <button class="filter-btn" data-filter="patch">Patch</button>
+                <button class="filter-btn" data-filter="e-sport">E-Sport</button>
+                <button class="sort-btn">
+                    
+                </button>
+            </div>
+            <div class="news-list" id="newsList"></div>
+        </div>
+    </section>
+<footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section footer-about">
+                    <h1 class="footer-logo">GNews</h1>
+                    <p class="footer-description">Votre site d'actualité de jeux vidéo. Restez informé des dernières sorties, tendances gaming et actualité e-sport.</p>
+                    <h4 style="margin-top: 25px;">CONTACT & SUPPORT</h4>
+                    <button class="btn-outline">info@gnews.com</button>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>NOS RÉSEAUX</h3>
+                    <p style="margin-bottom: 15px; color: rgba(255,255,255,0.7); font-size: 14px;">Rejoignez notre communauté</p>
+                    <div class="social-links">
+                        <a href="#" class="social-icon" title="Instagram">
+                            <svg viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000">
+                                <g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round">
+
+                                </g>
+                                <g id="SVGRepo_iconCarrier"> 
+                                    <title>instagram [#ffffff]</title>
+                                    <desc>Created with Sketch.</desc>
+                                    <defs></defs>
+                                    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                                        <g id="Dribbble-Light-Preview" transform="translate(-340.000000, -7439.000000)" fill="#ffffff">
+                                            <g id="icons" transform="translate(56.000000, 160.000000)">
+                                                <path d="M289.869652,7279.12273 C288.241769,7279.19618 286.830805,7279.5942 285.691486,7280.72871 C284.548187,7281.86918 284.155147,7283.28558 284.081514,7284.89653 C284.035742,7285.90201 283.768077,7293.49818 284.544207,7295.49028 C285.067597,7296.83422 286.098457,7297.86749 287.454694,7298.39256 C288.087538,7298.63872 288.809936,7298.80547 289.869652,7298.85411 C298.730467,7299.25511 302.015089,7299.03674 303.400182,7295.49028 C303.645956,7294.859 303.815113,7294.1374 303.86188,7293.08031 C304.26686,7284.19677 303.796207,7282.27117 302.251908,7280.72871 C301.027016,7279.50685 299.5862,7278.67508 289.869652,7279.12273 M289.951245,7297.06748 C288.981083,7297.0238 288.454707,7296.86201 288.103459,7296.72603 C287.219865,7296.3826 286.556174,7295.72155 286.214876,7294.84312 C285.623823,7293.32944 285.819846,7286.14023 285.872583,7284.97693 C285.924325,7283.83745 286.155174,7282.79624 286.959165,7281.99226 C287.954203,7280.99968 289.239792,7280.51332 297.993144,7280.90837 C299.135448,7280.95998 300.179243,7281.19026 300.985224,7281.99226 C301.980262,7282.98483 302.473801,7284.28014 302.071806,7292.99991 C302.028024,7293.96767 301.865833,7294.49274 301.729513,7294.84312 C300.829003,7297.15085 298.757333,7297.47145 289.951245,7297.06748 M298.089663,7283.68956 C298.089663,7284.34665 298.623998,7284.88065 299.283709,7284.88065 C299.943419,7284.88065 300.47875,7284.34665 300.47875,7283.68956 C300.47875,7283.03248 299.943419,7282.49847 299.283709,7282.49847 C298.623998,7282.49847 298.089663,7283.03248 298.089663,7283.68956 M288.862673,7288.98792 C288.862673,7291.80286 291.150266,7294.08479 293.972194,7294.08479 C296.794123,7294.08479 299.081716,7291.80286 299.081716,7288.98792 C299.081716,7286.17298 296.794123,7283.89205 293.972194,7283.89205 C291.150266,7283.89205 288.862673,7286.17298 288.862673,7288.98792 M290.655732,7288.98792 C290.655732,7287.16159 292.140329,7285.67967 293.972194,7285.67967 C295.80406,7285.67967 297.288657,7287.16159 297.288657,7288.98792 C297.288657,7290.81525 295.80406,7292.29716 293.972194,7292.29716 C292.140329,7292.29716 290.655732,7290.81525 290.655732,7288.98792" id="instagram-[#ffffff]">
+
+                                                </path> 
+                                            </g> 
+                                        </g> 
+                                    </g> 
+                                </g>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-icon" title="X (Twitter)">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-icon" title="TikTok">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="social-icon" title="YouTube">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="#FF0000">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" fill="white"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>INFOS</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">À propos</a></li>
+                        <li><a href="#">Contact</a></li>
+                        <li><a href="#">Équipe</a></li>
+                        <li><a href="#">Partenaires</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>LÉGAL</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Mentions légales</a></li>
+                        <li><a href="#">CGU</a></li>
+                        <li><a href="#">Politique de confidentialité</a></li>
+                        <li><a href="#">Cookies</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-copyright">
+                <p>© 2025 Games Team - Tous droits réservés</p>
+            </div>
+        </div>
+    </footer>
+    <script src="js/app.js"></script>
+</body>
+</html>
