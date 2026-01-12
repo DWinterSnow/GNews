@@ -549,22 +549,74 @@ body {
     box-shadow: 0 5px 20px rgba(37, 244, 238, 0.5);
 }
 
+/* ==================== NEWS LIST - GRILLE RESPONSIVE ==================== */
 .news-list {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
     min-height: 300px;
     width: 100%;
-    justify-content: flex-start;
 }
 
 .news-list > p {
-    grid-column: 1/-1;
+    grid-column: 1 / -1;
     text-align: center;
-    width: 100%;
     margin: auto;
 }
 
+/* ==================== BOUTON "CHARGER PLUS" ==================== */
+.load-more-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 30px 20px;
+    margin-top: 10px;
+}
+
+.load-more-btn {
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    color: var(--white);
+    border: 2px solid var(--cyan);
+    padding: 18px 40px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    transition: all 0.4s;
+    box-shadow: 0 5px 20px rgba(145, 78, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    gap: 10px;
+}
+
+.load-more-btn:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 10px 30px rgba(37, 244, 238, 0.5);
+    border-color: var(--yellow);
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+}
+
+.load-more-btn:active {
+    transform: translateY(-2px) scale(1.02);
+}
+
+.all-loaded-message {
+    width: 100%;
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--cyan);
+    font-size: 16px;
+    font-weight: 600;
+    background: rgba(37, 244, 238, 0.1);
+    border-radius: 15px;
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    margin-top: 20px;
+}
+
+/* ==================== NEWS CARD ==================== */
 .news-card {
     background: linear-gradient(135deg, rgba(145, 78, 255, 0.2), rgba(16, 21, 157, 0.3));
     border-radius: 20px;
@@ -577,9 +629,6 @@ body {
     flex-direction: column;
     height: 420px;
     cursor: pointer;
-    width: 280px;
-    flex-shrink: 0;
-    flex-grow: 0;
 }
 
 .news-card:hover {
@@ -631,8 +680,7 @@ body {
     font-size: 14px;
 }
 
-/* ==================== NOUVEAUX STYLES ACTUALITÉS ==================== */
-
+/* ==================== BADGES ==================== */
 .source-badge {
     display: inline-flex;
     align-items: center;
@@ -793,20 +841,14 @@ body {
 }
 
 /* ==================== RESPONSIVE ==================== */
-@media (max-width: 1600px) {
-    .news-list {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
 @media (max-width: 1200px) {
+    .news-list {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    
     .game-card {
         min-width: 180px;
         max-width: 180px;
-    }
-    
-    .news-list {
-        grid-template-columns: repeat(3, 1fr);
     }
 }
 
@@ -826,6 +868,10 @@ body {
         grid-row: auto;
     }
     
+    .news-list {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+    
     .game-card {
         min-width: 180px;
         max-width: 180px;
@@ -834,11 +880,6 @@ body {
 
     .game-card-image {
         height: 140px;
-    }
-    
-    .news-list {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
     }
     
     .footer-content {
@@ -859,6 +900,10 @@ body {
         justify-content: space-around;
     }
     
+    .news-list {
+        grid-template-columns: 1fr;
+    }
+    
     .game-card {
         min-width: 150px;
         max-width: 150px;
@@ -869,8 +914,10 @@ body {
         height: 120px;
     }
     
-    .news-list {
-        grid-template-columns: 1fr;
+    .news-card {
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto;
     }
     
     .footer-content {
@@ -906,5 +953,10 @@ body {
     .social-icon svg {
         width: 22px;
         height: 22px;
+    }
+    
+    .load-more-btn {
+        padding: 15px 30px;
+        font-size: 14px;
     }
 }

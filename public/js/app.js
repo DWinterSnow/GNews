@@ -1,4 +1,4 @@
-// App.js - VERSION HYBRIDE avec actualités réelles
+// App.js - VERSION SCROLL INFINI - Affichage progressif
 
 // État de l'application
 let currentTab = 'trending';
@@ -8,10 +8,12 @@ let allGames = {
     upcoming: [],
     recent: []
 };
-let allNews = [];
+let allNews = []; // TOUS les articles du serveur
+let displayedNewsCount = 30; // Commence à 30 articles
 let currentNewsFilter = 'tout';
+const NEWS_INCREMENT = 12; // Charger 12 articles de plus à chaque clic
 
-// Initialisation au chargement de la page
+// Initialisation
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎮 Application GNews démarrée');
     testAPI();
@@ -21,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
 });
 
-// Tester la connexion à l'API
+// Tester l'API
 async function testAPI() {
     try {
         const response = await fetch('/api/test-rawg');
@@ -39,9 +41,8 @@ async function testAPI() {
     }
 }
 
-// Configuration des écouteurs d'événements
+// Configuration des écouteurs
 function setupEventListeners() {
-    // Recherche - Enter key
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('keyup', (e) => {
@@ -51,7 +52,6 @@ function setupEventListeners() {
         });
     }
 
-    // Filtres de catégorie d'actualités
     const newsFilters = document.querySelectorAll('.news-filters .filter-btn');
     newsFilters.forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -62,7 +62,6 @@ function setupEventListeners() {
         });
     });
 
-    // Navigation
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
@@ -77,21 +76,17 @@ function setupEventListeners() {
 function switchTab(tab) {
     currentTab = tab;
     
-    // Update tab buttons
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     event.target.closest('.tab-btn').classList.add('active');
     
-    // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(`${tab}Content`).classList.add('active');
     
-    // Reset platform filter
     currentPlatform = 'tout';
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     const firstFilter = document.querySelector('.filter-btn[data-platform="tout"]');
     if (firstFilter) firstFilter.classList.add('active');
     
-    // Load games if not already loaded
     if (allGames[tab].length === 0) {
         loadGames(tab);
     }
@@ -101,11 +96,9 @@ function switchTab(tab) {
 function filterByPlatform(platform) {
     currentPlatform = platform;
     
-    // Update button states
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
-    // Filter and display games
     if (platform === 'tout') {
         displayGames(allGames[currentTab], currentTab);
     } else {
@@ -181,7 +174,7 @@ function displayFeaturedGames(games) {
     `).join('');
 }
 
-// Charger les jeux selon le type (INCHANGÉ)
+// Charger les jeux
 async function loadGames(type) {
     const endpoints = {
         trending: '/api/games/popular',
@@ -225,7 +218,7 @@ async function loadGames(type) {
     }
 }
 
-// Afficher la grille de jeux (INCHANGÉ)
+// Afficher la grille de jeux
 function displayGames(games, type) {
     const container = document.getElementById(`${type}Games`);
     if (!container) return;
@@ -257,14 +250,74 @@ function displayGames(games, type) {
     `).join('');
 }
 
-// ==================== NOUVELLES FONCTIONS ACTUALITÉS ====================
+// ==================== CATÉGORIES ====================
 
-// Charger les actualités depuis les APIs
+function detectArticleCategory(article) {
+    const title = article.title.toLowerCase();
+    const description = (article.description || '').toLowerCase();
+    const content = title + ' ' + description;
+    
+    const guideKeywords = ['guide', 'how to', 'tutorial', 'walkthrough', 'tips', 'tricks', 'beginner', 
+                          'advanced', 'strategy', 'build', 'best', 'top 10', 'explained', 'conseil'];
+    
+    const reviewKeywords = ['review', 'test', 'critique', 'impression', 'hands-on', 'preview', 
+                           'tested', 'verdict', 'rating', 'score', 'analysis', 'évaluation'];
+    
+    const patchKeywords = ['patch', 'update', 'hotfix', 'fix', 'bug', 'changelog', 'notes', 
+                          'version', 'release', 'mise à jour', 'correctif', 'balance'];
+    
+    const esportKeywords = ['esport', 'tournament', 'championship', 'competitive', 'pro', 'team', 
+                           'league', 'finals', 'winner', 'prize', 'competition', 'match', 'compétition'];
+    
+    if (esportKeywords.some(keyword => content.includes(keyword))) return 'e-sport';
+    if (patchKeywords.some(keyword => content.includes(keyword))) return 'patch';
+    if (reviewKeywords.some(keyword => content.includes(keyword))) return 'teste';
+    if (guideKeywords.some(keyword => content.includes(keyword))) return 'guide';
+    if (article.source === 'reddit') return 'discussion';
+    return 'article';
+}
+
+function getCategoryBadgeStyled(category) {
+    const badges = {
+        'guide': { icon: '📖', label: 'Guide', color: '#4CAF50', bgColor: 'rgba(76, 175, 80, 0.2)' },
+        'teste': { icon: '⭐', label: 'Test', color: '#FF9800', bgColor: 'rgba(255, 152, 0, 0.2)' },
+        'patch': { icon: '🔧', label: 'Patch', color: '#2196F3', bgColor: 'rgba(33, 150, 243, 0.2)' },
+        'e-sport': { icon: '🏆', label: 'E-Sport', color: '#F44336', bgColor: 'rgba(244, 67, 54, 0.2)' },
+        'article': { icon: '📰', label: 'Article', color: '#9C27B0', bgColor: 'rgba(156, 39, 176, 0.2)' },
+        'discussion': { icon: '💬', label: 'Discussion', color: '#00BCD4', bgColor: 'rgba(0, 188, 212, 0.2)' }
+    };
+    
+    const badge = badges[category] || badges['article'];
+    
+    return `
+        <span class="category-badge" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: ${badge.bgColor};
+            color: ${badge.color};
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1.5px solid ${badge.color};
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        ">
+            <span style="font-size: 14px;">${badge.icon}</span>
+            ${badge.label}
+        </span>
+    `;
+}
+
+// ==================== ACTUALITÉS - SCROLL INFINI ====================
+
+// Charger TOUS les articles du serveur
 async function loadNews() {
     showLoading('newsList');
     
     try {
-        console.log('📰 Chargement des actualités...');
+        console.log('📰 Chargement de TOUS les articles depuis le serveur...');
         const response = await fetch('/api/news');
         
         if (!response.ok) {
@@ -272,10 +325,18 @@ async function loadNews() {
         }
         
         const data = await response.json();
-        allNews = data;
         
-        console.log(`✅ ${data.length} actualités chargées`);
-        displayNews(data);
+        // Ajouter la catégorie détectée
+        allNews = data.map(article => ({
+            ...article,
+            detectedCategory: detectArticleCategory(article)
+        }));
+        
+        console.log(`✅ ${allNews.length} articles chargés au total`);
+        
+        // Afficher les 30 premiers
+        displayedNewsCount = 30;
+        displayNews();
         
     } catch (error) {
         console.error('❌ Erreur actualités:', error);
@@ -291,42 +352,49 @@ async function loadNews() {
     }
 }
 
-// Filtrer les actualités par catégorie
+// Filtrer par catégorie
 function filterNews(filter) {
     currentNewsFilter = filter;
-    
-    if (filter === 'tout') {
-        displayNews(allNews);
-        return;
-    }
-    
-    // Mapper les filtres aux catégories/sources
-    const filtered = allNews.filter(news => {
-        if (filter === 'guide' && news.title.toLowerCase().includes('guide')) return true;
-        if (filter === 'teste' && (news.title.toLowerCase().includes('review') || news.title.toLowerCase().includes('test'))) return true;
-        if (filter === 'patch' && (news.title.toLowerCase().includes('update') || news.title.toLowerCase().includes('patch'))) return true;
-        if (filter === 'e-sport' && (news.title.toLowerCase().includes('esport') || news.title.toLowerCase().includes('tournament'))) return true;
-        return false;
-    });
-    
-    displayNews(filtered.length > 0 ? filtered : allNews);
+    displayedNewsCount = 30; // Reset à 30
+    displayNews();
+}
+
+// Charger plus d'articles (scroll infini)
+function loadMoreNews() {
+    displayedNewsCount += NEWS_INCREMENT;
+    console.log(`📄 Affichage de ${displayedNewsCount} articles`);
+    displayNews();
 }
 
 // Afficher les actualités
-function displayNews(news) {
+function displayNews() {
     const container = document.getElementById('newsList');
     if (!container) return;
     
-    if (!news || news.length === 0) {
-        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow);">Aucune actualité disponible</p>';
+    if (!allNews || allNews.length === 0) {
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%;">Aucune actualité disponible</p>';
         return;
     }
     
-    container.innerHTML = news.slice(0, 20).map(article => {
+    // Filtrer par catégorie
+    let newsToShow = allNews;
+    if (currentNewsFilter !== 'tout') {
+        newsToShow = allNews.filter(article => article.detectedCategory === currentNewsFilter);
+    }
+    
+    if (newsToShow.length === 0) {
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%;">Aucun article dans cette catégorie</p>';
+        return;
+    }
+    
+    // Afficher jusqu'à displayedNewsCount articles
+    const articlesToDisplay = newsToShow.slice(0, displayedNewsCount);
+    const hasMore = newsToShow.length > displayedNewsCount;
+    
+    container.innerHTML = articlesToDisplay.map(article => {
         const sourceIcon = getSourceIcon(article.source);
-        const categoryBadge = getCategoryBadge(article.category);
+        const categoryBadge = getCategoryBadgeStyled(article.detectedCategory);
         
-        // Limiter la description à 100 caractères
         const shortDescription = article.description 
             ? article.description.substring(0, 100) + (article.description.length > 100 ? '...' : '')
             : '';
@@ -338,7 +406,7 @@ function displayNews(news) {
                      class="news-image"
                      onerror="this.src='https://via.placeholder.com/800x250/10159d/fff?text=Gaming+News'">
                 <div class="news-content">
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;">
                         <span class="source-badge">${sourceIcon} ${article.author}</span>
                         ${categoryBadge}
                     </div>
@@ -355,61 +423,60 @@ function displayNews(news) {
             </div>
         `;
     }).join('');
+    
+    // Bouton "Charger plus" - Simple et élégant
+    if (hasMore) {
+        container.innerHTML += `
+            <div style="width: 100%; display: flex; justify-content: center; padding: 20px; grid-column: 1 / -1;">
+                <button onclick="loadMoreNews()" class="load-more-btn">
+                    <span style="font-size: 20px; margin-right: 10px;">📰</span>
+                    Charger plus d'articles
+                </button>
+            </div>
+        `;
+    } else if (newsToShow.length > 30) {
+        container.innerHTML += `
+            <div style="width: 100%; text-align: center; padding: 20px; color: var(--cyan); grid-column: 1 / -1;">
+                <p style="font-size: 16px;">✅ Vous avez tout vu !</p>
+            </div>
+        `;
+    }
 }
 
-// Obtenir l'icône de la source
 function getSourceIcon(source) {
-    const icons = {
-        'reddit': '💬',
-        'rss': '📰',
-        'guardian': '🗞️'
-    };
+    const icons = { 'reddit': '💬', 'rss': '📰', 'guardian': '🗞️' };
     return icons[source] || '📰';
 }
 
-// Obtenir le badge de catégorie
-function getCategoryBadge(category) {
-    const badges = {
-        'article': '<span class="genre-tag">Article</span>',
-        'discussion': '<span class="genre-tag">Discussion</span>',
-        'news': '<span class="genre-tag">News</span>'
-    };
-    return badges[category] || '';
-}
-
-// Rechercher des actualités
+// Recherche
 async function performSearch() {
     const query = document.getElementById('searchInput').value;
     
     if (!query.trim()) {
-        displayNews(allNews);
+        displayedNewsCount = 30;
+        displayNews();
         return;
     }
     
-    // Filtrer les actualités localement
     const filtered = allNews.filter(news => 
         news.title.toLowerCase().includes(query.toLowerCase()) ||
         news.description.toLowerCase().includes(query.toLowerCase())
     );
     
     if (filtered.length > 0) {
-        displayNews(filtered);
+        displayedNewsCount = 30;
+        allNews = filtered;
+        displayNews();
     } else {
-        // Si aucun résultat local, chercher dans RAWG
         showLoading('newsList');
         
         try {
-            console.log('🔍 Recherche:', query);
             const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
-            
-            if (!response.ok) {
-                throw new Error('Erreur recherche');
-            }
+            if (!response.ok) throw new Error('Erreur recherche');
             
             const data = await response.json();
             
             if (data.results && data.results.length > 0) {
-                // Convertir les jeux en format actualité
                 const gamesAsNews = data.results.map(game => ({
                     source: 'rawg',
                     title: game.name,
@@ -418,27 +485,29 @@ async function performSearch() {
                     image: game.background_image,
                     publishedAt: game.released,
                     author: 'RAWG',
-                    category: 'game'
+                    category: 'game',
+                    detectedCategory: 'article'
                 }));
                 
-                displayNews(gamesAsNews);
+                allNews = gamesAsNews;
+                displayedNewsCount = 30;
+                displayNews();
             } else {
-                displayNews([]);
+                allNews = [];
+                displayNews();
             }
         } catch (error) {
             console.error('❌ Erreur recherche:', error);
-            displayNews([]);
+            allNews = [];
+            displayNews();
         }
     }
 }
 
-// Rediriger vers la page de détails du jeu
 function viewGame(id) {
-    console.log('🎮 Ouverture du jeu:', id);
     window.location.href = `game-details.html?id=${id}`;
 }
 
-// Fonction pour générer les étoiles de notation
 function getStarRating(rating) {
     if (!rating) return '';
     
@@ -447,23 +516,13 @@ function getStarRating(rating) {
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
     
     let stars = '';
-    
-    for (let i = 0; i < fullStars; i++) {
-        stars += '⭐';
-    }
-    
-    if (hasHalfStar) {
-        stars += '✨';
-    }
-    
-    for (let i = 0; i < emptyStars; i++) {
-        stars += '☆';
-    }
+    for (let i = 0; i < fullStars; i++) stars += '⭐';
+    if (hasHalfStar) stars += '✨';
+    for (let i = 0; i < emptyStars; i++) stars += '☆';
     
     return stars;
 }
 
-// Formater une date
 function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', { 
@@ -473,7 +532,6 @@ function formatDate(dateString) {
     });
 }
 
-// Afficher un loader
 function showLoading(containerId) {
     const container = document.getElementById(containerId);
     if (container) {
@@ -485,7 +543,6 @@ function showLoading(containerId) {
     }
 }
 
-// Afficher une erreur
 function showError(message) {
     const containers = ['featuredArticles', 'trendingGames', 'upcomingGames', 'recentGames', 'newsList'];
     containers.forEach(id => {
