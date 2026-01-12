@@ -1,172 +1,455 @@
-🎮 GNews - Site d'Actualités Gaming avec API RAWG
-Site web d'actualités gaming moderne avec intégration de l'API RAWG, utilisant Node.js, Express, HTML, CSS et JavaScript.
+================================================================================
+                     GNews - Plateforme d'Actualités Gaming
+================================================================================
 
-🎨 Palette de Couleurs
-Le design utilise une palette vibrante et moderne :
+Version: 2.0.0
+Auteur: GNews Team
+Licence: ISC
 
-{
-    --purple: #914eff; #  Couleur principale
-    --yellow: #ffce38; # Accents et highlights
-    --cyan: #25f4ee; # Éléments interactifs
-    --blue: #10159d; # Arrière-plans secondaires
-    --dark-blue: #0a1e64; # Arrière-plans principaux
-    --light-blue: #7694ff; # Éléments légers
-}
+================================================================================
+DESCRIPTION
+================================================================================
 
-Structure du Projet
+GNews est une plateforme web moderne d'actualités gaming qui centralise :
+
+✓ Actualités de 13+ sources (Reddit, RSS, The Guardian) - ~800 articles
+✓ Base de données de 500,000+ jeux vidéo (API RAWG)
+✓ Système de critiques et avis utilisateurs
+✓ Liens d'achat vers 10+ plateformes (Steam, Epic, PlayStation, etc.)
+
+================================================================================
+INSTALLATION RAPIDE
+================================================================================
+
+1. Cloner le projet
+   git clone https://github.com/votre-username/gnews.git
+   cd gnews
+
+2. Installer les dépendances
+   npm install
+
+3. Configurer les clés API dans server.js
+   const RAWG_API_KEY = 'VOTRE_CLE_RAWG';
+   const GUARDIAN_API_KEY = 'VOTRE_CLE_GUARDIAN'; // Optionnel
+
+4. Lancer le serveur
+   npm start
+
+5. Ouvrir dans le navigateur
+   http://localhost:3000
+
+================================================================================
+OBTENIR LES CLÉS API
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ RAWG API (GRATUIT - REQUIS)                                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│ URL: https://rawg.io/apidocs                                           │
+│ Limite: 20,000 requêtes/mois                                           │
+│ Accès: 500,000+ jeux vidéo                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ The Guardian API (GRATUIT - OPTIONNEL)                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│ URL: https://open-platform.theguardian.com/                            │
+│ Limite: 5,000 requêtes/jour                                            │
+│ Accès: Articles gaming                                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+ARCHITECTURE DU PROJET
+================================================================================
 
 gnews/
 │
-├── server.js                # Serveur Node.js Express avec API RAWG
-├── package.json             # Configuration npm
+├──  server.js                   # Serveur Express + API Routes
+├──  package.json                # Configuration npm
+├──  package-lock.json           # Lock des dépendances
+├──  README.txt                  # Ce fichier
+├──  .gitignore                  # Fichiers Git à ignorer
 │
-├── public/                  # Fichiers publics
-│   ├── index.html           # Page d'accueil
-│   │
-│   ├── css/
-│   │   └── style.css        # Styles CSS avec palette de couleurs
-│   │
-│   └── js/
-│       └── app.js           # JavaScript frontend + intégration RAWG
-│
-└── README.md                # Ce fichier
+└──  public/                     # Fichiers statiques
+    │
+    ├──  index.html              # Page d'accueil
+    ├──  game-details.html       # Page détails jeu
+    │
+    ├──  css/
+    │   ├──  style.css           # Styles page accueil
+    │   └──  game-details.css    # Styles page détails
+    │
+    └──  js/
+        ├──  app.js              # JavaScript page accueil
+        └──  game-details.js     # JavaScript page détails
 
-📦 Installation
+================================================================================
+ARCHITECTURE LOGIQUE
+================================================================================
 
-1. Obtenir une clé API RAWG (GRATUIT)
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            CLIENT (NAVIGATEUR)                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────────────┐      ┌─────────────────────────┐         │
+│  │   index.html            │      │   game-details.html     │         │
+│  │   + style.css           │      │   + game-details.css    │         │
+│  │   + app.js              │      │   + game-details.js     │         │
+│  └─────────────────────────┘      └─────────────────────────┘         │
+│              │                                  │                       │
+│              └──────────────┬───────────────────┘                       │
+│                             │                                           │
+│                             ▼                                           │
+│                      Fetch API Calls                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        SERVEUR EXPRESS (Node.js)                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                            server.js                                    │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │  ROUTES API                                                    │    │
+│  ├───────────────────────────────────────────────────────────────┤    │
+│  │  • GET /api/games/popular          → Jeux populaires          │    │
+│  │  • GET /api/games/new-releases     → Nouveautés               │    │
+│  │  • GET /api/games/upcoming         → À venir                  │    │
+│  │  • GET /api/games/search           → Recherche                │    │
+│  │  • GET /api/games/platform/:id     → Par plateforme           │    │
+│  │  • GET /api/games/:id              → Détails jeu              │    │
+│  │  • GET /api/genres                 → Liste genres             │    │
+│  │  • GET /api/news                   → Actualités (~800)        │    │
+│  │  • GET /api/news/refresh           → Rafraîchir cache         │    │
+│  │  • GET /api/news/status            → État cache               │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │  SYSTÈME DE CACHE                                              │    │
+│  ├───────────────────────────────────────────────────────────────┤    │
+│  │  • newsCache = { allArticles: [], timestamp: 0 }              │    │
+│  │  • Durée: 6 heures                                            │    │
+│  │  • Refresh automatique après expiration                       │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │  FONCTIONS UTILITAIRES                                         │    │
+│  ├───────────────────────────────────────────────────────────────┤    │
+│  │  • filterAdultContent()      → Filtre contenu adulte          │    │
+│  │  • refreshNewsCache()        → Récupère actualités            │    │
+│  │  • fetchRedditNews()         → Reddit API                     │    │
+│  │  • fetchRSSNews()            → RSS Parser                     │    │
+│  │  • fetchGuardianNews()       → Guardian API                   │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          APIS EXTERNES                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐    │
+│  │   RAWG API       │  │   Reddit API     │  │   Guardian API   │    │
+│  ├──────────────────┤  ├──────────────────┤  ├──────────────────┤    │
+│  │ 500,000+ jeux    │  │ 5 subreddits     │  │ Section Gaming   │    │
+│  │ 20k req/mois     │  │ 100 posts/sub    │  │ 50 articles      │    │
+│  │                  │  │ ~500 articles    │  │                  │    │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘    │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐      │
+│  │              8 RSS FEEDS (PC Gamer, IGN, etc.)              │      │
+│  │              30 articles/site = ~240 articles               │      │
+│  └─────────────────────────────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────────────────┘
 
-Allez sur https://rawg.io/apidocs
-Créez un compte gratuit
-Obtenez votre clé API dans la section "Get API Key"
+================================================================================
+FLUX DE DONNÉES
+================================================================================
 
-2. Configurer votre clé API
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. PAGE D'ACCUEIL (index.html)                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+   │
+   ├─► app.js chargé
+   │   │
+   │   ├─► DOMContentLoaded
+   │   │   │
+   │   │   ├─► loadFeaturedGames()
+   │   │   │   └─► fetch('/api/games/popular')
+   │   │   │       └─► displayFeaturedGames(games)
+   │   │   │
+   │   │   ├─► loadGames('trending')
+   │   │   │   └─► fetch('/api/games/popular')
+   │   │   │       └─► displayGames(games)
+   │   │   │
+   │   │   └─► loadNews()
+   │   │       └─► fetch('/api/news')
+   │   │           └─► displayNews(articles, 30 initiaux)
+   │   │
+   │   ├─► Interactions utilisateur
+   │   │   │
+   │   │   ├─► switchTab(tab)
+   │   │   │   └─► loadGames(tab)
+   │   │   │
+   │   │   ├─► filterByPlatform(platform)
+   │   │   │   └─► displayGames(filtered)
+   │   │   │
+   │   │   ├─► performSearch()
+   │   │   │   └─► fetch('/api/games/search?query=...')
+   │   │   │
+   │   │   └─► loadMoreNews()
+   │   │       └─► displayNews(articles, +12)
+   │   │
+   │   └─► viewGame(id)
+   │       └─► Redirection vers game-details.html?id=XXX
 
-Ouvrez server.js et remplacez :
-javascriptconst RAWG_API_KEY = 'VOTRE_CLE_API_RAWG';
-Par votre vraie clé API obtenue sur RAWG.
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 2. PAGE DÉTAILS JEU (game-details.html)                                │
+└─────────────────────────────────────────────────────────────────────────┘
+   │
+   └─► game-details.js chargé
+       │
+       ├─► DOMContentLoaded
+       │   │
+       │   ├─► Récupérer ID depuis URL (?id=XXX)
+       │   │
+       │   └─► loadGameDetails(id)
+       │       │
+       │       ├─► fetch('/api/games/:id')
+       │       │   └─► displayGameDetails(game)
+       │       │       ├─► Galerie d'images
+       │       │       ├─► Informations (note, date, dev, etc.)
+       │       │       ├─► displayPlatforms(game)
+       │       │       └─► displayStoreLinks(game)
+       │       │           └─► Détection intelligente stores
+       │       │
+       │       └─► loadGameScreenshots(id)
+       │           └─► fetch RAWG screenshots API
+       │               └─► displayGallery()
+       │
+       └─► initCommentsSection()
+           │
+           ├─► loadUserReview()
+           │   └─► localStorage
+           │
+           ├─► Formulaire d'avis
+           │   └─► submitReview()
+           │       └─► saveUserReview()
+           │
+           └─► loadComments()
+               └─► generateMockComments()
+                   └─► displayComments()
 
-3. Installer les dépendances
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 3. SERVEUR (server.js)                                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+   │
+   ├─► Démarrage serveur Express
+   │   └─► Port 3000
+   │
+   ├─► Requête entrante
+   │   │
+   │   ├─► Route /api/games/*
+   │   │   └─► Appel RAWG API
+   │   │       └─► filterAdultContent()
+   │   │           └─► Retour JSON
+   │   │
+   │   └─► Route /api/news
+   │       │
+   │       ├─► Vérifier cache (< 6h ?)
+   │       │   │
+   │       │   ├─► OUI → Retourner newsCache.allArticles
+   │       │   │
+   │       │   └─► NON → refreshNewsCache()
+   │       │       │
+   │       │       ├─► fetchRedditNews()
+   │       │       │   └─► 5 subreddits × 100 posts
+   │       │       │
+   │       │       ├─► fetchRSSNews()
+   │       │       │   └─► 8 sites × 30 articles
+   │       │       │
+   │       │       ├─► fetchGuardianNews()
+   │       │       │   └─► 50 articles
+   │       │       │
+   │       │       └─► Combiner + Trier + Stocker
+   │       │           └─► newsCache.allArticles (~800)
+   │       │
+   │       └─► Retour JSON
 
-bashnpm install
-🎮 Lancement du Site
-Mode Production
-bashnpm start
-Mode Développement (avec auto-reload)
-bashnpm run dev
-Le site sera accessible sur : http://localhost:3000
-🎯 Fonctionnalités
-✅ Intégration API RAWG
+================================================================================
+GESTION DES DONNÉES
+================================================================================
 
-Jeux populaires : Top jeux les mieux notés
-Nouveautés : Dernières sorties du mois
-Prochaines sorties : Jeux à venir
-Filtrage par plateforme : PC, PlayStation, Xbox, Switch, VR
-Recherche : Recherche en temps réel dans la base RAWG
-Détails des jeux : Note, genres, plateformes, description
+┌─────────────────────────────────────────────────────────────────────────┐
+│ CÔTÉ SERVEUR (server.js)                                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  newsCache = {                                                          │
+│    allArticles: [],        // Tous les articles (~800)                 │
+│    timestamp: 0,           // Timestamp du dernier refresh             │
+│    duration: 6h            // Durée de validité                        │
+│  }                                                                      │
+│                                                                         │
+│  ✓ En mémoire (volatile - perdu au redémarrage)                        │
+│  ✓ Refresh automatique après expiration                                │
+│  ✓ Endpoint /api/news/refresh pour forcer                              │
+└─────────────────────────────────────────────────────────────────────────┘
 
-🎨 Design Moderne
+┌─────────────────────────────────────────────────────────────────────────┐
+│ CÔTÉ CLIENT (game-details.js)                                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  localStorage.setItem('review_[gameId]', JSON.stringify(review))       │
+│                                                                         │
+│  Structure d'un avis:                                                   │
+│  {                                                                      │
+│    id: timestamp,                                                       │
+│    userName: 'Vous',                                                    │
+│    rating: 1-5,                                                         │
+│    ownGame: true/false,                                                 │
+│    recommend: true/false,                                               │
+│    comment: 'text',                                                     │
+│    date: ISO string,                                                    │
+│    likes: 0,                                                            │
+│    dislikes: 0                                                          │
+│  }                                                                      │
+│                                                                         │
+│  ✓ Persistant (reste après fermeture navigateur)                       │
+│  ✓ Par jeu (clé: review_[gameId])                                      │
+│  ✓ Un avis par utilisateur par jeu                                     │
+└─────────────────────────────────────────────────────────────────────────┘
 
-Gradients dynamiques : Utilisation de la palette de couleurs
-Effets hover : Animations et transitions fluides
-Cartes interactives : Transformation au survol
-Responsive : Adaptation mobile, tablette, desktop
-Backdrop blur : Effets de profondeur modernes
+================================================================================
+COMPOSANTS PRINCIPAUX
+================================================================================
 
-🚀 Performance
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PAGE ACCUEIL (index.html)                                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. Header                                                              │
+│     ├─ Logo GNews                                                       │
+│     ├─ Navigation (Accueil, Actualités, Jeux, Communauté)              │
+│     ├─ Barre de recherche                                               │
+│     └─ Icônes utilisateur (notifications, profil)                       │
+│                                                                         │
+│  2. Section Jeux en Vedette                                             │
+│     └─ 3 jeux mis en avant (1 grand + 2 petits)                        │
+│                                                                         │
+│  3. Section Jeux (Tabs)                                                 │
+│     ├─ Tabs: Prochaines sorties | Top Tendance | Sorties Récentes      │
+│     ├─ Filtres: Tout | PC | VR | PlayStation | Xbox | Switch           │
+│     └─ Grille de jeux (scroll horizontal)                               │
+│                                                                         │
+│  4. Section Actualités                                                  │
+│     ├─ Filtres: Tout | Guide | Test | Patch | E-Sport                  │
+│     ├─ Grille d'articles (responsive)                                   │
+│     └─ Bouton "Charger plus" (scroll infini)                            │
+│                                                                         │
+│  5. Footer                                                              │
+│     ├─ À propos GNews                                                   │
+│     ├─ Réseaux sociaux (Instagram, X, TikTok, YouTube)                 │
+│     ├─ Liens (Infos, Légal)                                             │
+│     └─ Copyright                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 
-Chargement asynchrone : API calls non-bloquantes
-Gestion d'erreurs : Messages clairs et réessai possible
-Images optimisées : Fallback pour images manquantes
-Cache navigateur : Fichiers statiques cachés
+┌─────────────────────────────────────────────────────────────────────────┐
+│ PAGE DÉTAILS JEU (game-details.html)                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. Header (identique à l'accueil)                                      │
+│                                                                         │
+│  2. Breadcrumb                                                          │
+│     └─ Accueil > Jeux > [Nom du jeu]                                   │
+│                                                                         │
+│  3. Titre + Sous-titre                                                  │
+│     ├─ Nom du jeu (gradient cyan/yellow)                                │
+│     └─ Plateformes disponibles                                          │
+│                                                                         │
+│  4. Galerie + Sidebar Info                                              │
+│     ├─ Galerie (gauche)                                                 │
+│     │  ├─ Image principale                                              │
+│     │  ├─ Miniatures (5 max)                                            │
+│     │  └─ Navigation (prev/next)                                        │
+│     │                                                                    │
+│     └─ Sidebar (droite)                                                 │
+│        ├─ Note générale (étoiles)                                       │
+│        ├─ Nombre d'avis                                                 │
+│        ├─ Date de sortie                                                │
+│        ├─ Développeur                                                   │
+│        ├─ Éditeur                                                       │
+│        ├─ Tags populaires                                               │
+│        └─ Genres                                                        │
+│                                                                         │
+│  5. Description + Actions                                               │
+│     ├─ Description (gauche)                                             │
+│     │  ├─ À propos de ce jeu                                            │
+│     │  └─ Statistiques (Metacritic, durée, ESRB)                        │
+│     │                                                                    │
+│     └─ Actions (droite)                                                 │
+│        ├─ Bouton "Suivre"                                               │
+│        ├─ Favoris + Partager                                            │
+│        ├─ Plateformes disponibles                                       │
+│        └─ Liens vers stores (Steam, Epic, etc.)                         │
+│                                                                         │
+│  6. Section Avis                                                        │
+│     ├─ Statistiques globales                                            │
+│     │  ├─ Note moyenne                                                  │
+│     │  └─ Distribution des notes                                        │
+│     │                                                                    │
+│     ├─ Formulaire d'avis utilisateur                                    │
+│     │  ├─ Notation par étoiles                                          │
+│     │  ├─ Checkboxes (possède, recommande)                              │
+│     │  └─ Zone de commentaire                                           │
+│     │                                                                    │
+│     └─ Liste des commentaires                                           │
+│        ├─ Tri (récents, utiles, note)                                   │
+│        ├─ Commentaires (avatar, note, texte)                            │
+│        └─ Votes (Like/Dislike)                                                 │
+│                                                                         │
+│  7. Footer (identique à l'accueil)                                      │
+└─────────────────────────────────────────────────────────────────────────┘
 
-🎯 API Endpoints Disponibles
+================================================================================
+📊 RÉCAPITULATIF DONNÉES
+================================================================================
 
-EndpointDescriptionParamètresGET /api/games/popularJeux les mieux notés-GET /api/games/new-releasesSorties du dernier mois-GET /api/games/upcomingJeux à venir-GET /api/games/platform/:platformJeux par plateformepc, playstation, xbox, switch, vrGET /api/games/searchRechercher des jeuxquery=nom_du_jeuGET /api/games/:idDétails d'un jeuid du jeuGET /api/genresListe des genres-
+Sources de Jeux:
+├─ RAWG API: 500,000+ jeux
+├─ Filtrage: Exclusion contenu adulte + DLCs
+└─ Catégories: Populaires, Nouveautés, À venir
 
-🎨 Personnalisation des Couleurs
+Sources d'Actualités (Total: ~800 articles):
+├─ Reddit: 5 subreddits × 100 posts = ~500 articles
+├─ RSS: 8 sites × 30 articles = ~240 articles
+└─ Guardian: ~50 articles
 
-Pour modifier la palette de couleurs, éditez les variables CSS dans public/css/style.css :
-css:root {
-    --purple: #914eff;
-    --yellow: #ffce38;
-    --cyan: #25f4ee;
-    --blue: #10159d;
-    --dark-blue: #0a1e64;
-    --light-blue: #7694ff;
-}
+Plateformes de Jeux Supportées:
+├─ PC (Steam, Epic, GOG)
+├─ Console (PlayStation, Xbox, Nintendo)
+├─ Mobile (Google Play, App Store)
+└─ VR (Meta Quest)
 
-🔧 Technologies Utilisées
+Stockage:
+├─ Serveur: Cache en mémoire (6h) pour actualités
+└─ Client: localStorage pour avis utilisateurs
 
-Backend : Node.js + Express
-API externe : RAWG Video Games Database
-Frontend : HTML5, CSS3 (Grid, Flexbox, Gradients)
-JavaScript : Vanilla JS (Async/Await, Fetch API)
-HTTP Client : Axios
+================================================================================
+🚀 COMMANDES
+================================================================================
 
-📱 Responsive Design
-Le site s'adapte à toutes les tailles d'écran :
+npm install          # Installer les dépendances
+npm start            # Lancer en production (port 3000)
+npm run dev          # Lancer en développement (nodemon)
 
-📱 Mobile : < 640px (2 colonnes)
-📱 Tablette : 640px - 968px (3 colonnes)
-💻 Desktop : > 968px (6 colonnes)
+================================================================================
+📞 CONTACT
+================================================================================
 
-🚀 Évolutions Possibles
+Email:   info@gnews.com
+GitHub:  github.com/votre-username/gnews
+Twitter: @GNewsGaming
 
- Système de favoris (localStorage)
- Pagination des résultats
- Filtres avancés (par genre, note, année)
- Page de détails complète pour chaque jeu
- Système d'authentification utilisateur
- Sauvegarde des jeux en favoris (backend)
- Comparateur de jeux
- Section vidéos/trailers
- Mode sombre/clair
- Partage sur réseaux sociaux
-
-📝 Notes Importantes
-Limites API RAWG (plan gratuit)
-
-20,000 requêtes par mois
-Pas de clé API requise pour tests (limitée)
-Attribution requise : Mentionner RAWG sur votre site
-
-Images
-Les images proviennent directement de l'API RAWG. Si une image n'est pas disponible, un placeholder s'affiche automatiquement.
-CORS
-Le serveur Express gère automatiquement les requêtes API. Pas de problème CORS.
-🐛 Résolution de Problèmes
-Erreur "Impossible de charger les jeux"
-
-Vérifiez que votre clé API RAWG est correcte
-Vérifiez votre connexion internet
-Consultez la console du navigateur (F12)
-
-Les images ne s'affichent pas
-
-Normal si l'API RAWG ne fournit pas d'image
-Un placeholder s'affiche automatiquement
-
-Le serveur ne démarre pas
-bash# Vérifiez que les dépendances sont installées
-npm install
-
-# Vérifiez que le port 3000 est libre
-lsof -ti:3000 | xargs kill -9  # Mac/Linux
-👨‍💻 Développement
-Pour ajouter de nouvelles fonctionnalités :
-
-Backend/API : Modifiez server.js
-Structure HTML : Modifiez public/index.html
-Styles : Modifiez public/css/style.css
-Interactivité : Modifiez public/js/app.js
-
-📚 Documentation RAWG
-Documentation complète de l'API : https://api.rawg.io/docs/
-
-🎮 Exemples d'Utilisation
-Rechercher un jeu
-javascriptconst response = await fetch('/api/games/search?query=minecraft');
-const data = await response.json();
-Obtenir les jeux PC
-javascriptconst response = await fetch('/api/games/platform/pc');
-const data = await response.json();
+================================================================================
+                        Fait avec ❤️ par GNews Team
+================================================================================
