@@ -1,4 +1,4 @@
-// Server.js - VERSION HYBRIDE avec actualités réelles
+// Server.js - VERSION HYBRIDE avec actualités réelles - CORRIGÉE
 
 const express = require('express');
 const path = require('path');
@@ -16,7 +16,7 @@ const REDDIT_USER_AGENT = 'GNewsApp/1.0';
 // Parsers
 const rssParser = new Parser({
   customFields: {
-    item: ['media:content', 'media:thumbnail']
+    item: ['media:content', 'media:thumbnail', 'content:encoded']
   }
 });
 
@@ -313,7 +313,7 @@ app.get('/api/genres', async (req, res) => {
   }
 });
 
-// ==================== NOUVELLES ROUTES ACTUALITÉS ====================
+// ==================== NOUVELLES ROUTES ACTUALITÉS - CORRIGÉES ====================
 
 // Parser Reddit
 async function fetchRedditNews() {
@@ -348,6 +348,7 @@ async function fetchRedditNews() {
       });
     }
     
+    console.log(`✅ Reddit: ${articles.length} articles récupérés`);
     return articles;
   } catch (error) {
     console.error('❌ Erreur Reddit:', error.message);
@@ -355,12 +356,14 @@ async function fetchRedditNews() {
   }
 }
 
-// Parser RSS Feeds
+// Parser RSS Feeds - CORRIGÉ
 async function fetchRSSNews() {
   const feeds = [
-    { url: 'https://www.ign.com/feed.xml', source: 'IGN' },
+    { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer' },
     { url: 'https://www.gamespot.com/feeds/mashup/', source: 'GameSpot' },
-    { url: 'https://kotaku.com/rss', source: 'Kotaku' }
+    { url: 'https://kotaku.com/rss', source: 'Kotaku' },
+    { url: 'https://www.destructoid.com/feed/', source: 'Destructoid' },
+    { url: 'https://www.polygon.com/rss/index.xml', source: 'Polygon' }
   ];
   
   const articles = [];
@@ -372,12 +375,17 @@ async function fetchRSSNews() {
       parsedFeed.items.slice(0, 5).forEach(item => {
         let image = 'https://via.placeholder.com/400x250/10159d/fff?text=Gaming+News';
         
+        // Recherche d'image dans plusieurs champs possibles
         if (item['media:content'] && item['media:content'].$?.url) {
           image = item['media:content'].$.url;
         } else if (item['media:thumbnail'] && item['media:thumbnail'].$?.url) {
           image = item['media:thumbnail'].$.url;
         } else if (item.enclosure?.url) {
           image = item.enclosure.url;
+        } else if (item['content:encoded']) {
+          // Extraire l'image du contenu HTML si disponible
+          const imgMatch = item['content:encoded'].match(/<img[^>]+src="([^">]+)"/);
+          if (imgMatch) image = imgMatch[1];
         }
         
         articles.push({
@@ -391,8 +399,12 @@ async function fetchRSSNews() {
           category: 'article'
         });
       });
+      
+      console.log(`✅ ${feed.source}: ${parsedFeed.items.slice(0, 5).length} articles récupérés`);
+      
     } catch (error) {
       console.error(`❌ Erreur RSS ${feed.source}:`, error.message);
+      // Continue avec les autres feeds même si un échoue
     }
   }
   
@@ -423,6 +435,7 @@ async function fetchGuardianNews() {
       category: 'article'
     }));
     
+    console.log(`✅ The Guardian: ${articles.length} articles récupérés`);
     return articles;
   } catch (error) {
     console.error('❌ Erreur Guardian:', error.message);
@@ -480,6 +493,20 @@ app.get('/api/news/refresh', async (req, res) => {
   res.redirect('/api/news');
 });
 
+// Route pour vérifier l'état du cache
+app.get('/api/news/status', (req, res) => {
+  const age = Date.now() - newsCache.timestamp;
+  const remaining = newsCache.duration - age;
+  
+  res.json({
+    cached: !!newsCache.data,
+    articles: newsCache.data?.length || 0,
+    age: Math.floor(age / 1000 / 60) + ' minutes',
+    remaining: Math.floor(remaining / 1000 / 60) + ' minutes',
+    nextRefresh: new Date(newsCache.timestamp + newsCache.duration).toLocaleString()
+  });
+});
+
 // ==================== ROUTES GÉNÉRALES ====================
 
 app.get('/', (req, res) => {
@@ -498,9 +525,10 @@ app.listen(PORT, () => {
   console.log('═══════════════════════════════════════════════');
   console.log(`🚀 Serveur GNews démarré sur http://localhost:${PORT}`);
   console.log(`📡 API RAWG: Jeux vidéo`);
-  console.log(`📰 Sources actualités: Reddit + RSS + The Guardian`);
+  console.log(`📰 Sources actualités: Reddit + RSS (5 sources) + The Guardian`);
   console.log(`💾 Cache actualités: 6 heures`);
   console.log(`🧪 Test: http://localhost:${PORT}/api/test-rawg`);
   console.log(`📰 Test actualités: http://localhost:${PORT}/api/news`);
+  console.log(`📊 État cache: http://localhost:${PORT}/api/news/status`);
   console.log('═══════════════════════════════════════════════');
 });
