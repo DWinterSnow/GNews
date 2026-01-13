@@ -62,12 +62,21 @@ function setupEventListeners() {
         });
     });
 
+    // CORRECTION: Ne pas bloquer la navigation des liens
     const navLinks = document.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
+            // Ne bloquer que les liens avec href="#"
+            const href = e.currentTarget.getAttribute('href');
+            if (href && href !== '#') {
+                // Laisser le lien naviguer normalement
+                return;
+            }
+            
+            // Bloquer uniquement les liens sans destination
             e.preventDefault();
             navLinks.forEach(l => l.classList.remove('active'));
-            e.target.classList.add('active');
+            e.currentTarget.classList.add('active');
         });
     });
 }
