@@ -1,10 +1,99 @@
-// game-details.js - Version corrigée avec système de stores amélioré
+// game-details.js - VERSION AVEC PERSISTANCE DES COMMENTAIRES
 
 let currentGame = null;
 let allMedia = [];
 let currentMediaIndex = 0;
 let isFollowing = false;
 let isFavorite = false;
+
+// ==================== SYSTÈME DE STOCKAGE ====================
+
+// Structure de stockage pour les commentaires
+const STORAGE_KEYS = {
+    COMMENTS: 'game_comments_', // Préfixe suivi de l'ID du jeu
+    USER_REVIEW: 'user_review_', // Préfixe suivi de l'ID du jeu
+    VOTES: 'comment_votes_' // Préfixe suivi de l'ID du jeu
+};
+
+// Sauvegarder les commentaires d'un jeu
+function saveGameComments(gameId, comments) {
+    try {
+        localStorage.setItem(STORAGE_KEYS.COMMENTS + gameId, JSON.stringify(comments));
+        console.log(`💾 ${comments.length} commentaires sauvegardés pour le jeu ${gameId}`);
+    } catch (error) {
+        console.error('❌ Erreur sauvegarde commentaires:', error);
+    }
+}
+
+// Charger les commentaires d'un jeu
+function loadGameComments(gameId) {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.COMMENTS + gameId);
+        if (saved) {
+            const comments = JSON.parse(saved);
+            console.log(`✅ ${comments.length} commentaires chargés pour le jeu ${gameId}`);
+            return comments;
+        }
+        return [];
+    } catch (error) {
+        console.error('❌ Erreur chargement commentaires:', error);
+        return [];
+    }
+}
+
+// Sauvegarder l'avis de l'utilisateur
+function saveUserReview(gameId, review) {
+    try {
+        localStorage.setItem(STORAGE_KEYS.USER_REVIEW + gameId, JSON.stringify(review));
+        console.log(`💾 Avis utilisateur sauvegardé pour le jeu ${gameId}`);
+    } catch (error) {
+        console.error('❌ Erreur sauvegarde avis:', error);
+    }
+}
+
+// Charger l'avis de l'utilisateur
+function loadUserReview(gameId) {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.USER_REVIEW + gameId);
+        if (saved) {
+            console.log(`✅ Avis utilisateur chargé pour le jeu ${gameId}`);
+            return JSON.parse(saved);
+        }
+        return null;
+    } catch (error) {
+        console.error('❌ Erreur chargement avis:', error);
+        return null;
+    }
+}
+
+// Sauvegarder les votes de l'utilisateur
+function saveUserVotes(gameId, votes) {
+    try {
+        localStorage.setItem(STORAGE_KEYS.VOTES + gameId, JSON.stringify(votes));
+    } catch (error) {
+        console.error('❌ Erreur sauvegarde votes:', error);
+    }
+}
+
+// Charger les votes de l'utilisateur
+function loadUserVotes(gameId) {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.VOTES + gameId);
+        if (saved) {
+            return JSON.parse(saved);
+        }
+        return {};
+    } catch (error) {
+        console.error('❌ Erreur chargement votes:', error);
+        return {};
+    }
+}
+
+// ==================== INITIALISATION ====================
+
+let currentUserReview = null;
+let gameComments = [];
+let userVotes = {};
 
 // Au chargement de la page
 document.addEventListener('DOMContentLoaded', () => {
@@ -66,7 +155,6 @@ function performSearch() {
     const query = searchInput.value.trim();
     
     if (query) {
-        // Rediriger vers la page d'accueil avec le paramètre de recherche
         window.location.href = `index.html?search=${encodeURIComponent(query)}`;
     }
 }
@@ -88,6 +176,21 @@ async function loadGameDetails(gameId) {
         currentGame = game;
         await loadGameScreenshots(gameId);
         displayGameDetails(game);
+        
+        // Charger les données sauvegardées
+        currentUserReview = loadUserReview(gameId);
+        gameComments = loadGameComments(gameId);
+        userVotes = loadUserVotes(gameId);
+        
+        // Si aucun commentaire n'existe, générer des commentaires fictifs
+        if (gameComments.length === 0) {
+            gameComments = generateMockComments();
+            saveGameComments(gameId, gameComments);
+        }
+        
+        // Initialiser la section commentaires
+        initCommentsSection();
+        
         hideLoading();
     } catch (error) {
         console.error('❌ Erreur chargement:', error);
@@ -321,7 +424,7 @@ function displayPlatforms(game) {
     }).join('');
 }
 
-// FONCTION CORRIGÉE - Afficher les liens vers les stores
+// Afficher les liens vers les stores
 function displayStoreLinks(game) {
     const storeLinksCard = document.querySelector('.store-links-card');
     if (!storeLinksCard) return;
@@ -329,7 +432,6 @@ function displayStoreLinks(game) {
     console.log('========== GÉNÉRATION DES STORES ==========');
     console.log('🎮 Jeu:', game.name);
     
-    // Configuration des stores avec détection améliorée
     const storeConfig = {
         'steam': {
             name: 'Steam',
@@ -406,13 +508,11 @@ function displayStoreLinks(game) {
     const addedStores = new Set();
     let storeLinksHTML = '<div class="store-links-title">🛒 Où acheter</div>';
     
-    // 1. Site officiel en premier
     if (game.website) {
         storeLinksHTML += createStoreLink('Site officiel', '🌐', 'linear-gradient(135deg, var(--purple), var(--blue))', game.website);
         console.log('✅ Site officiel ajouté');
     }
     
-    // 2. Traiter les stores de l'API RAWG
     if (game.stores && game.stores.length > 0) {
         console.log('🛒 Stores API RAWG:', game.stores.map(s => s.store.slug));
         
@@ -420,7 +520,6 @@ function displayStoreLinks(game) {
             const storeSlug = storeData.store.slug.toLowerCase();
             const storeName = storeData.store.name.toLowerCase();
             
-            // Trouver la configuration correspondante
             for (const [key, config] of Object.entries(storeConfig)) {
                 const match = config.keywords.some(keyword => 
                     storeSlug.includes(keyword) || storeName.includes(keyword)
@@ -437,7 +536,6 @@ function displayStoreLinks(game) {
         });
     }
     
-    // 3. Ajouter stores basés sur les plateformes (SEULEMENT si absents)
     if (game.platforms && game.platforms.length > 0) {
         console.log('💻 Plateformes:', game.platforms.map(p => p.platform.name));
         
@@ -474,7 +572,6 @@ function displayStoreLinks(game) {
         });
     }
     
-    // 4. Détection VR spéciale (si pas déjà ajouté)
     const isVRGame = checkIfVRGame(game);
     if (isVRGame && !addedStores.has('Meta Quest Store')) {
         const config = storeConfig['meta-quest'];
@@ -483,7 +580,6 @@ function displayStoreLinks(game) {
         console.log('✅ Meta Quest ajouté (jeu VR)');
     }
     
-    // 5. Message si aucun store
     if (addedStores.size === 0 && !game.website) {
         storeLinksHTML += `
             <p style="text-align: center; color: rgba(255,255,255,0.6); margin-top: 15px; font-size: 14px;">
@@ -498,7 +594,6 @@ function displayStoreLinks(game) {
     
     storeLinksCard.innerHTML = storeLinksHTML;
     
-    // Ajouter les event listeners
     const storeLinks = storeLinksCard.querySelectorAll('.store-link[data-url]');
     storeLinks.forEach(link => {
         link.style.cursor = 'pointer';
@@ -509,7 +604,6 @@ function displayStoreLinks(game) {
     });
 }
 
-// Fonction helper pour créer un lien de store
 function createStoreLink(name, logo, background, url) {
     return `
         <div class="store-link" data-url="${url}">
@@ -522,16 +616,13 @@ function createStoreLink(name, logo, background, url) {
     `;
 }
 
-// Fonction helper pour détecter si c'est un jeu VR
 function checkIfVRGame(game) {
     const gameName = game.name.toLowerCase();
     
-    // Vérifier le nom
     if (gameName.includes('vr') || gameName.includes('beat saber') || gameName.includes('vrchat')) {
         return true;
     }
     
-    // Vérifier les plateformes
     if (game.platforms) {
         const hasVRPlatform = game.platforms.some(p => {
             const pName = p.platform.name.toLowerCase();
@@ -540,7 +631,6 @@ function checkIfVRGame(game) {
         if (hasVRPlatform) return true;
     }
     
-    // Vérifier les tags
     if (game.tags) {
         const hasVRTag = game.tags.some(t => {
             const tName = t.name.toLowerCase();
@@ -565,13 +655,11 @@ function navigateMedia(direction) {
     displayGallery();
 }
 
-// Selectionner un media specifique
 function selectMedia(index) {
     currentMediaIndex = index;
     displayGallery();
 }
 
-// Ouvrir la modale
 function openModal(index) {
     currentMediaIndex = index;
     const modal = document.getElementById('mediaModal');
@@ -583,7 +671,6 @@ function openModal(index) {
     }
 }
 
-// Fermer la modale
 function closeModal() {
     const modal = document.getElementById('mediaModal');
     if (modal) {
@@ -591,7 +678,6 @@ function closeModal() {
     }
 }
 
-// Navigation modale
 function prevMedia() {
     navigateMedia(-1);
     document.getElementById('modalImage').src = allMedia[currentMediaIndex].url;
@@ -602,7 +688,6 @@ function nextMedia() {
     document.getElementById('modalImage').src = allMedia[currentMediaIndex].url;
 }
 
-// Toggle suivre
 function toggleFollow() {
     isFollowing = !isFollowing;
     const followBtn = document.getElementById('followBtn');
@@ -621,7 +706,6 @@ function toggleFollow() {
     }
 }
 
-// Toggle favori
 function toggleFavorite() {
     isFavorite = !isFavorite;
     const favoriteBtn = document.getElementById('favoriteBtn');
@@ -637,7 +721,6 @@ function toggleFavorite() {
     }
 }
 
-// Partager le jeu
 function shareGame() {
     if (navigator.share && currentGame) {
         navigator.share({
@@ -655,7 +738,6 @@ function shareGame() {
     }
 }
 
-// Copier le lien dans le presse-papier
 function copyToClipboard() {
     const url = window.location.href;
     navigator.clipboard.writeText(url).then(() => {
@@ -665,485 +747,6 @@ function copyToClipboard() {
     });
 }
 
-// Afficher une notification
-function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 100px;
-        right: 20px;
-        background: linear-gradient(135deg, var(--purple), var(--blue));
-        color: white;
-        padding: 15px 25px;
-        border-radius: 10px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        z-index: 10000;
-        animation: slideIn 0.3s ease-out;
-        border: 2px solid var(--cyan);
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// Formater une date
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-}
-
-// Generer les etoiles de notation
-function getStarRating(rating) {
-    if (!rating) return '☆☆☆☆☆';
-    
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-    
-    let stars = '';
-    
-    for (let i = 0; i < fullStars; i++) {
-        stars += '⭐';
-    }
-    
-    if (hasHalfStar) {
-        stars += '✨';
-    }
-    
-    for (let i = 0; i < emptyStars; i++) {
-        stars += '☆';
-    }
-    
-    return stars;
-}
-
-// Afficher l'etat de chargement
-function showLoading() {
-    document.getElementById('loadingScreen').style.display = 'flex';
-    document.getElementById('mainContent').style.display = 'none';
-}
-
-// Masquer l'etat de chargement
-function hideLoading() {
-    document.getElementById('loadingScreen').style.display = 'none';
-    document.getElementById('mainContent').style.display = 'block';
-}
-
-// Afficher une erreur
-function showError(message) {
-    hideLoading();
-    const mainContent = document.getElementById('mainContent');
-    mainContent.style.display = 'block';
-    mainContent.innerHTML = `
-        <div class="container" style="text-align: center; padding: 60px 20px;">
-            <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
-            <h2 style="color: var(--yellow); margin-bottom: 20px; font-size: 32px;">${message}</h2>
-            <p style="color: rgba(255,255,255,0.7); margin-bottom: 30px;">
-                Le jeu demande n'a pas pu etre charge.
-            </p>
-            <button onclick="window.location.href='index.html'" 
-                    style="padding: 15px 30px; background: linear-gradient(135deg, var(--purple), var(--blue)); 
-                           color: white; border: 2px solid var(--cyan); border-radius: 15px; 
-                           cursor: pointer; font-size: 16px; font-weight: 600;">
-                Retour a l'accueil
-            </button>
-        </div>
-    `;
-}
-
-// Ajouter les styles d'animation
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style)
-// ==================== GESTION DES COMMENTAIRES ====================
-
-// Variables globales pour les commentaires
-let userReviewVotes = {}; // Stocke les votes de l'utilisateur {reviewId: 'like'|'dislike'|null}
-
-// Initialisation au chargement
-document.addEventListener('DOMContentLoaded', () => {
-    initializeReviewsSection();
-});
-
-function initializeReviewsSection() {
-    // Gestion du formulaire d'avis
-    const reviewForm = document.getElementById('reviewForm');
-    if (reviewForm) {
-        reviewForm.addEventListener('submit', handleReviewSubmit);
-    }
-
-    // Compteur de caractères
-    const reviewText = document.getElementById('reviewText');
-    const charCount = document.getElementById('charCount');
-    if (reviewText && charCount) {
-        reviewText.addEventListener('input', () => {
-            const count = reviewText.value.length;
-            charCount.textContent = count;
-            
-            // Changer la couleur si limite atteinte
-            if (count >= 500) {
-                charCount.style.color = 'var(--yellow)';
-            } else {
-                charCount.style.color = 'rgba(255, 255, 255, 0.5)';
-            }
-        });
-    }
-
-    // Gestion du système d'étoiles
-    const starInputs = document.querySelectorAll('.star-rating-input input');
-    const ratingText = document.getElementById('ratingText');
-    
-    starInputs.forEach(input => {
-        input.addEventListener('change', (e) => {
-            const value = e.target.value;
-            const texts = {
-                '5': '⭐⭐⭐⭐⭐ Excellent !',
-                '4': '⭐⭐⭐⭐ Très bien',
-                '3': '⭐⭐⭐ Bien',
-                '2': '⭐⭐ Passable',
-                '1': '⭐ Décevant'
-            };
-            ratingText.textContent = texts[value] || 'Sélectionnez une note';
-            ratingText.style.color = 'var(--cyan)';
-        });
-    });
-
-    // Gestion des filtres
-    const filterSelect = document.getElementById('filterSelect');
-    const sortSelect = document.getElementById('sortSelect');
-    
-    if (filterSelect) {
-        filterSelect.addEventListener('change', applyFilters);
-    }
-    
-    if (sortSelect) {
-        sortSelect.addEventListener('change', applyFilters);
-    }
-
-    // Gestion du bouton "Charger plus"
-    const loadMoreBtn = document.getElementById('loadMoreBtn');
-    if (loadMoreBtn) {
-        loadMoreBtn.addEventListener('click', loadMoreReviews);
-    }
-
-    // Initialiser les boutons like/dislike
-    initializeVoteButtons();
-}
-
-// Soumettre un avis
-function handleReviewSubmit(e) {
-    e.preventDefault();
-    
-    const formData = {
-        rating: document.querySelector('input[name="rating"]:checked')?.value,
-        ownGame: document.getElementById('ownGame').checked,
-        recommend: document.getElementById('recommend').checked,
-        text: document.getElementById('reviewText').value,
-        timestamp: new Date().toISOString()
-    };
-
-    // Validation
-    if (!formData.rating) {
-        showNotification('⚠️ Veuillez sélectionner une note', 'warning');
-        return;
-    }
-
-    if (formData.text.length < 20) {
-        showNotification('⚠️ Votre avis doit contenir au moins 20 caractères', 'warning');
-        return;
-    }
-
-    // Simulation de l'envoi
-    console.log('📝 Nouvel avis:', formData);
-    
-    // Créer et ajouter l'avis à la liste
-    const newReview = createReviewElement(formData);
-    const reviewsList = document.getElementById('reviewsList');
-    
-    if (reviewsList) {
-        // Ajouter au début de la liste
-        reviewsList.insertBefore(newReview, reviewsList.firstChild);
-        
-        // Animation d'apparition
-        setTimeout(() => {
-            newReview.style.opacity = '0';
-            newReview.style.transform = 'translateY(-20px)';
-            setTimeout(() => {
-                newReview.style.transition = 'all 0.5s ease';
-                newReview.style.opacity = '1';
-                newReview.style.transform = 'translateY(0)';
-            }, 10);
-        }, 10);
-    }
-
-    // Réinitialiser le formulaire
-    e.target.reset();
-    document.getElementById('charCount').textContent = '0';
-    document.getElementById('ratingText').textContent = 'Sélectionnez une note';
-    document.getElementById('ratingText').style.color = 'rgba(255, 255, 255, 0.7)';
-
-    // Notification de succès
-    showNotification('✅ Votre avis a été publié avec succès !', 'success');
-
-    // Scroll vers le nouvel avis
-    setTimeout(() => {
-        newReview.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 600);
-}
-
-// Créer un élément d'avis
-function createReviewElement(data) {
-    const reviewCard = document.createElement('div');
-    reviewCard.className = 'review-card';
-    
-    const stars = '⭐'.repeat(parseInt(data.rating));
-    const userName = 'Vous'; // Ou récupérer depuis les données utilisateur
-    const timeAgo = 'À l\'instant';
-    
-    const ownBadge = data.ownGame ? '<span class="badge badge-owned" title="Possède le jeu">🎮</span>' : '';
-    const recBadge = data.recommend ? '<span class="badge badge-recommended" title="Recommande">👍</span>' : '';
-    
-    reviewCard.innerHTML = `
-        <div class="review-header">
-            <div class="review-user">
-                <div class="user-avatar">👤</div>
-                <div class="user-info">
-                    <div class="user-name">${userName}</div>
-                    <div class="review-date">${timeAgo}</div>
-                </div>
-            </div>
-            <div class="review-rating">
-                <div class="rating-stars">${stars}</div>
-                <div class="review-badges">
-                    ${ownBadge}
-                    ${recBadge}
-                </div>
-            </div>
-        </div>
-        
-        <div class="review-content">
-            <p>${escapeHtml(data.text)}</p>
-        </div>
-        
-        <div class="review-footer">
-            <div class="review-helpful">
-                Ce avis vous a été utile ?
-            </div>
-            <div class="review-actions">
-                <button class="action-btn like-btn" data-review-id="new-${Date.now()}">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                    </svg>
-                    <span class="count">0</span>
-                </button>
-                <button class="action-btn dislike-btn" data-review-id="new-${Date.now()}">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
-                    </svg>
-                    <span class="count">0</span>
-                </button>
-                <button class="action-btn report-btn" title="Signaler">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-                        <line x1="4" y1="22" x2="4" y2="15"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Réinitialiser les event listeners
-    setTimeout(() => initializeVoteButtons(), 100);
-    
-    return reviewCard;
-}
-
-// Initialiser les boutons like/dislike
-function initializeVoteButtons() {
-    const likeButtons = document.querySelectorAll('.like-btn');
-    const dislikeButtons = document.querySelectorAll('.dislike-btn');
-    const reportButtons = document.querySelectorAll('.report-btn');
-
-    likeButtons.forEach(btn => {
-        btn.removeEventListener('click', handleLikeClick);
-        btn.addEventListener('click', handleLikeClick);
-    });
-
-    dislikeButtons.forEach(btn => {
-        btn.removeEventListener('click', handleDislikeClick);
-        btn.addEventListener('click', handleDislikeClick);
-    });
-
-    reportButtons.forEach(btn => {
-        btn.removeEventListener('click', handleReportClick);
-        btn.addEventListener('click', handleReportClick);
-    });
-}
-
-// Gérer les clics sur "like"
-function handleLikeClick(e) {
-    const btn = e.currentTarget;
-    const reviewId = btn.dataset.reviewId;
-    const countSpan = btn.querySelector('.count');
-    const dislikeBtn = btn.parentElement.querySelector('.dislike-btn[data-review-id="' + reviewId + '"]');
-    const dislikeCount = dislikeBtn?.querySelector('.count');
-    
-    let count = parseInt(countSpan.textContent);
-    
-    // Si déjà liké, on retire le like
-    if (userReviewVotes[reviewId] === 'like') {
-        count--;
-        btn.classList.remove('active');
-        userReviewVotes[reviewId] = null;
-    } 
-    // Si disliké avant, on retire le dislike et on ajoute le like
-    else if (userReviewVotes[reviewId] === 'dislike') {
-        let dislikeCountNum = parseInt(dislikeCount.textContent);
-        dislikeCountNum--;
-        dislikeCount.textContent = dislikeCountNum;
-        dislikeBtn.classList.remove('active');
-        
-        count++;
-        btn.classList.add('active');
-        userReviewVotes[reviewId] = 'like';
-    }
-    // Sinon, on ajoute le like
-    else {
-        count++;
-        btn.classList.add('active');
-        userReviewVotes[reviewId] = 'like';
-    }
-    
-    countSpan.textContent = count;
-}
-
-// Gérer les clics sur "dislike"
-function handleDislikeClick(e) {
-    const btn = e.currentTarget;
-    const reviewId = btn.dataset.reviewId;
-    const countSpan = btn.querySelector('.count');
-    const likeBtn = btn.parentElement.querySelector('.like-btn[data-review-id="' + reviewId + '"]');
-    const likeCount = likeBtn?.querySelector('.count');
-    
-    let count = parseInt(countSpan.textContent);
-    
-    // Si déjà disliké, on retire le dislike
-    if (userReviewVotes[reviewId] === 'dislike') {
-        count--;
-        btn.classList.remove('active');
-        userReviewVotes[reviewId] = null;
-    }
-    // Si liké avant, on retire le like et on ajoute le dislike
-    else if (userReviewVotes[reviewId] === 'like') {
-        let likeCountNum = parseInt(likeCount.textContent);
-        likeCountNum--;
-        likeCount.textContent = likeCountNum;
-        likeBtn.classList.remove('active');
-        
-        count++;
-        btn.classList.add('active');
-        userReviewVotes[reviewId] = 'dislike';
-    }
-    // Sinon, on ajoute le dislike
-    else {
-        count++;
-        btn.classList.add('active');
-        userReviewVotes[reviewId] = 'dislike';
-    }
-    
-    countSpan.textContent = count;
-}
-
-// Gérer les signalements
-function handleReportClick(e) {
-    if (confirm('Voulez-vous vraiment signaler cet avis ?')) {
-        showNotification('🚩 Avis signalé. Merci pour votre contribution.', 'info');
-        console.log('Avis signalé');
-    }
-}
-
-// Appliquer les filtres
-function applyFilters() {
-    const filterValue = document.getElementById('filterSelect')?.value;
-    const sortValue = document.getElementById('sortSelect')?.value;
-    
-    console.log('📊 Filtres appliqués:', { filterValue, sortValue });
-    
-    showNotification(`🔍 Filtres appliqués: ${filterValue} - ${sortValue}`, 'info');
-    
-    // Ici, vous implémenteriez la logique réelle de filtrage
-    // Pour l'instant, c'est une simulation
-}
-
-// Charger plus d'avis
-function loadMoreReviews() {
-    const btn = document.getElementById('loadMoreBtn');
-    const originalText = btn.innerHTML;
-    
-    // Animation de chargement
-    btn.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
-            <circle cx="12" cy="12" r="10"/>
-        </svg>
-        Chargement...
-    `;
-    btn.disabled = true;
-    
-    // Simuler un délai de chargement
-    setTimeout(() => {
-        showNotification('✅ Plus d\'avis chargés !', 'success');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        
-        // Ici, vous ajouteriez les nouveaux avis à la liste
-        console.log('📥 Chargement de plus d\'avis...');
-    }, 1500);
-}
-
-// Fonction utilitaire pour échapper le HTML
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, m => map[m]);
-}
-
-// Fonction de notification améliorée avec types
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.textContent = message;
@@ -1182,15 +785,116 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
-// ==================== SYSTÈME DE COMMENTAIRES ====================
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+}
 
-let currentUserReview = null;
+function getStarRating(rating) {
+    if (!rating) return '☆☆☆☆☆';
+    
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    let stars = '';
+    
+    for (let i = 0; i < fullStars; i++) {
+        stars += '⭐';
+    }
+    
+    if (hasHalfStar) {
+        stars += '✨';
+    }
+    
+    for (let i = 0; i < emptyStars; i++) {
+        stars += '☆';
+    }
+    
+    return stars;
+}
+
+function showLoading() {
+    document.getElementById('loadingScreen').style.display = 'flex';
+    document.getElementById('mainContent').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+}
+
+function showError(message) {
+    hideLoading();
+    const mainContent = document.getElementById('mainContent');
+    mainContent.style.display = 'block';
+    mainContent.innerHTML = `
+        <div class="container" style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+            <h2 style="color: var(--yellow); margin-bottom: 20px; font-size: 32px;">${message}</h2>
+            <p style="color: rgba(255,255,255,0.7); margin-bottom: 30px;">
+                Le jeu demande n'a pas pu etre charge.
+            </p>
+            <button onclick="window.location.href='index.html'" 
+                    style="padding: 15px 30px; background: linear-gradient(135deg, var(--purple), var(--blue)); 
+                           color: white; border: 2px solid var(--cyan); border-radius: 15px; 
+                           cursor: pointer; font-size: 16px; font-weight: 600;">
+                Retour a l'accueil
+            </button>
+        </div>
+    `;
+}
+
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// ==================== SYSTÈME DE COMMENTAIRES AVEC PERSISTANCE ====================
+
+let reviewData = {
+    rating: 0,
+    ownGame: false,
+    recommend: false,
+    comment: ''
+};
 
 // Initialiser la section commentaires
 function initCommentsSection() {
-    loadUserReview();
-    loadComments();
     setupCommentListeners();
+    
+    // Afficher l'avis de l'utilisateur s'il existe
+    if (currentUserReview) {
+        displayUserReview();
+    }
+    
+    // Afficher tous les commentaires
+    displayComments(gameComments);
 }
 
 // Configurer les écouteurs d'événements
@@ -1219,6 +923,15 @@ function setupCommentListeners() {
         recommendCheckbox.addEventListener('change', updateReviewData);
     }
     
+    // Compteur de caractères
+    const commentTextarea = document.getElementById('reviewComment');
+    const charCount = document.getElementById('charCount');
+    if (commentTextarea && charCount) {
+        commentTextarea.addEventListener('input', () => {
+            charCount.textContent = commentTextarea.value.length;
+        });
+    }
+    
     // Bouton de soumission
     const submitBtn = document.getElementById('submitReview');
     if (submitBtn) {
@@ -1231,14 +944,6 @@ function setupCommentListeners() {
         sortSelect.addEventListener('change', sortComments);
     }
 }
-
-// Données de l'avis en cours
-let reviewData = {
-    rating: 0,
-    ownGame: false,
-    recommend: false,
-    comment: ''
-};
 
 // Sélectionner une note
 function selectRating(rating) {
@@ -1290,25 +995,25 @@ function updateReviewData() {
 }
 
 // Soumettre un avis
-async function submitReview() {
+function submitReview() {
     const commentTextarea = document.getElementById('reviewComment');
     const comment = commentTextarea ? commentTextarea.value.trim() : '';
     
     if (reviewData.rating === 0) {
-        showNotification('⚠️ Veuillez sélectionner une note');
+        showNotification('⚠️ Veuillez sélectionner une note', 'warning');
         return;
     }
     
     if (comment.length < 10) {
-        showNotification('⚠️ Votre commentaire doit contenir au moins 10 caractères');
+        showNotification('⚠️ Votre commentaire doit contenir au moins 10 caractères', 'warning');
         return;
     }
     
     reviewData.comment = comment;
     
-    // Créer l'avis
+    // Créer l'avis avec un ID unique
     const review = {
-        id: Date.now(),
+        id: 'user_' + Date.now(),
         userName: 'Vous',
         userAvatar: '👤',
         rating: reviewData.rating,
@@ -1324,7 +1029,7 @@ async function submitReview() {
     
     // Sauvegarder l'avis
     currentUserReview = review;
-    saveUserReview(review);
+    saveUserReview(currentGame.id, review);
     
     // Réinitialiser le formulaire
     resetReviewForm();
@@ -1333,6 +1038,8 @@ async function submitReview() {
     displayUserReview();
     
     showNotification('✅ Votre avis a été publié avec succès !');
+    
+    console.log('💾 Avis sauvegardé:', review);
 }
 
 // Réinitialiser le formulaire
@@ -1357,23 +1064,9 @@ function resetReviewForm() {
     
     const commentTextarea = document.getElementById('reviewComment');
     if (commentTextarea) commentTextarea.value = '';
-}
-
-// Charger l'avis de l'utilisateur
-function loadUserReview() {
-    if (!currentGame) return;
     
-    const saved = localStorage.getItem(`review_${currentGame.id}`);
-    if (saved) {
-        currentUserReview = JSON.parse(saved);
-        displayUserReview();
-    }
-}
-
-// Sauvegarder l'avis de l'utilisateur
-function saveUserReview(review) {
-    if (!currentGame) return;
-    localStorage.setItem(`review_${currentGame.id}`, JSON.stringify(review));
+    const charCount = document.getElementById('charCount');
+    if (charCount) charCount.textContent = '0';
 }
 
 // Afficher l'avis de l'utilisateur
@@ -1402,7 +1095,7 @@ function displayUserReview() {
                     </div>
                     <div class="comment-date">${formatCommentDate(currentUserReview.date)}</div>
                 </div>
-                <div class="comment-text">${currentUserReview.comment}</div>
+                <div class="comment-text">${escapeHtml(currentUserReview.comment)}</div>
             </div>
         </div>
     `;
@@ -1444,22 +1137,22 @@ function editReview() {
     if (recommendCheckbox) recommendCheckbox.checked = currentUserReview.recommend;
     
     const commentTextarea = document.getElementById('reviewComment');
-    if (commentTextarea) commentTextarea.value = currentUserReview.comment;
+    if (commentTextarea) {
+        commentTextarea.value = currentUserReview.comment;
+        document.getElementById('charCount').textContent = currentUserReview.comment.length;
+    }
+    
+    // Scroll vers le formulaire
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// Charger les commentaires des autres utilisateurs
-function loadComments() {
-    const comments = generateMockComments();
-    displayComments(comments);
-}
-
-// Générer des commentaires fictifs
+// Générer des commentaires fictifs (uniquement si aucun commentaire n'existe)
 function generateMockComments() {
     const names = ['Alexandre', 'Sophie', 'Thomas', 'Marie', 'Lucas', 'Emma', 'Nicolas', 'Léa', 'Maxime', 'Chloé'];
     const avatars = ['😎', '🎮', '🔥', '⚡', '🌟', '💜', '🎯', '🚀', '👾', '🎨'];
     
     const comments = [];
-    const numComments = Math.floor(Math.random() * 8) + 5;
+    const numComments = Math.floor(Math.random() * 6) + 3; // 3-8 commentaires
     
     for (let i = 0; i < numComments; i++) {
         const rating = Math.floor(Math.random() * 3) + 3; // 3-5 étoiles
@@ -1467,7 +1160,7 @@ function generateMockComments() {
         const recommend = rating >= 4;
         
         comments.push({
-            id: Date.now() + i,
+            id: 'mock_' + Date.now() + '_' + i,
             userName: names[Math.floor(Math.random() * names.length)],
             userAvatar: avatars[Math.floor(Math.random() * avatars.length)],
             rating: rating,
@@ -1549,14 +1242,14 @@ function displayComments(comments) {
                 </div>
                 <div class="comment-date">${formatCommentDate(comment.date)}</div>
             </div>
-            <div class="comment-text">${comment.comment}</div>
+            <div class="comment-text">${escapeHtml(comment.comment)}</div>
             <div class="comment-actions">
-                <button class="vote-btn ${comment.userVote === 'like' ? 'active' : ''}" 
-                        onclick="voteComment(${comment.id}, 'like')">
+                <button class="vote-btn ${userVotes[comment.id] === 'like' ? 'active' : ''}" 
+                        onclick="voteComment('${comment.id}', 'like')">
                     👍 <span>${comment.likes}</span>
                 </button>
-                <button class="vote-btn ${comment.userVote === 'dislike' ? 'active' : ''}" 
-                        onclick="voteComment(${comment.id}, 'dislike')">
+                <button class="vote-btn ${userVotes[comment.id] === 'dislike' ? 'active' : ''}" 
+                        onclick="voteComment('${comment.id}', 'dislike')">
                     👎 <span>${comment.dislikes}</span>
                 </button>
             </div>
@@ -1566,44 +1259,38 @@ function displayComments(comments) {
 
 // Voter sur un commentaire
 function voteComment(commentId, voteType) {
-    const commentCard = document.querySelector(`[data-comment-id="${commentId}"]`);
-    if (!commentCard) return;
+    const comment = gameComments.find(c => c.id === commentId);
+    if (!comment) return;
     
-    const likeBtnSpan = commentCard.querySelector('.vote-btn:first-child span');
-    const dislikeBtnSpan = commentCard.querySelector('.vote-btn:last-child span');
-    const likeBtn = commentCard.querySelector('.vote-btn:first-child');
-    const dislikeBtn = commentCard.querySelector('.vote-btn:last-child');
-    
-    let likes = parseInt(likeBtnSpan.textContent);
-    let dislikes = parseInt(dislikeBtnSpan.textContent);
-    
-    // Récupérer le vote actuel
-    const currentVote = likeBtn.classList.contains('active') ? 'like' : 
-                       dislikeBtn.classList.contains('active') ? 'dislike' : null;
+    const currentVote = userVotes[commentId];
     
     // Retirer le vote actuel
     if (currentVote === 'like') {
-        likes--;
-        likeBtn.classList.remove('active');
+        comment.likes--;
     } else if (currentVote === 'dislike') {
-        dislikes--;
-        dislikeBtn.classList.remove('active');
+        comment.dislikes--;
     }
     
     // Ajouter le nouveau vote si différent
     if (currentVote !== voteType) {
         if (voteType === 'like') {
-            likes++;
-            likeBtn.classList.add('active');
+            comment.likes++;
+            userVotes[commentId] = 'like';
         } else {
-            dislikes++;
-            dislikeBtn.classList.add('active');
+            comment.dislikes++;
+            userVotes[commentId] = 'dislike';
         }
+    } else {
+        // Retirer le vote si on clique à nouveau
+        delete userVotes[commentId];
     }
     
-    // Mettre à jour l'affichage
-    likeBtnSpan.textContent = likes;
-    dislikeBtnSpan.textContent = dislikes;
+    // Sauvegarder
+    saveGameComments(currentGame.id, gameComments);
+    saveUserVotes(currentGame.id, userVotes);
+    
+    // Réafficher
+    displayComments(gameComments);
 }
 
 // Trier les commentaires
@@ -1612,32 +1299,20 @@ function sortComments() {
     if (!sortSelect) return;
     
     const sortValue = sortSelect.value;
-    const comments = Array.from(document.querySelectorAll('.comment-card'));
-    const container = document.getElementById('commentsList');
     
-    comments.sort((a, b) => {
-        const aId = parseInt(a.dataset.commentId);
-        const bId = parseInt(b.dataset.commentId);
-        
+    const sortedComments = [...gameComments].sort((a, b) => {
         if (sortValue === 'recent') {
-            return bId - aId; // Plus récent en premier
+            return new Date(b.date) - new Date(a.date);
         } else if (sortValue === 'helpful') {
-            const aLikes = parseInt(a.querySelector('.vote-btn:first-child span').textContent);
-            const bLikes = parseInt(b.querySelector('.vote-btn:first-child span').textContent);
-            return bLikes - aLikes; // Plus de likes en premier
+            return (b.likes - b.dislikes) - (a.likes - a.dislikes);
         } else if (sortValue === 'rating-high') {
-            const aStars = a.querySelectorAll('.comment-meta span')[0].textContent.match(/⭐/g)?.length || 0;
-            const bStars = b.querySelectorAll('.comment-meta span')[0].textContent.match(/⭐/g)?.length || 0;
-            return bStars - aStars; // Note haute en premier
+            return b.rating - a.rating;
         } else if (sortValue === 'rating-low') {
-            const aStars = a.querySelectorAll('.comment-meta span')[0].textContent.match(/⭐/g)?.length || 0;
-            const bStars = b.querySelectorAll('.comment-meta span')[0].textContent.match(/⭐/g)?.length || 0;
-            return aStars - bStars; // Note basse en premier
+            return a.rating - b.rating;
         }
     });
     
-    // Réorganiser les commentaires
-    comments.forEach(comment => container.appendChild(comment));
+    displayComments(sortedComments);
 }
 
 // Afficher les étoiles
@@ -1669,6 +1344,14 @@ function formatCommentDate(dateString) {
     }
 }
 
-// Appeler cette fonction après le chargement du jeu
-// À ajouter dans game-details.js après displayGameDetails()
-// initCommentsSection();
+// Fonction utilitaire pour échapper le HTML
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}

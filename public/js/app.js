@@ -1,4 +1,4 @@
-// App.js - VERSION SCROLL INFINI - Affichage progressif
+// App.js - VERSION SCROLL INFINI - Affichage progressif CORRIGÉ
 
 // État de l'application
 let currentTab = 'trending';
@@ -350,7 +350,7 @@ async function loadNews() {
     } catch (error) {
         console.error('❌ Erreur actualités:', error);
         document.getElementById('newsList').innerHTML = `
-            <p style="text-align: center; padding: 40px; color: var(--yellow);">
+            <p style="text-align: center; padding: 40px; color: var(--yellow); grid-column: 1 / -1;">
                 Erreur: ${error.message}
                 <br><br>
                 <button onclick="loadNews()" style="padding: 12px 24px; background: var(--purple); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600;">
@@ -375,13 +375,13 @@ function loadMoreNews() {
     displayNews();
 }
 
-// Afficher les actualités
+// Afficher les actualités - CORRECTION DE LA GRILLE
 function displayNews() {
     const container = document.getElementById('newsList');
     if (!container) return;
     
     if (!allNews || allNews.length === 0) {
-        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%;">Aucune actualité disponible</p>';
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%; grid-column: 1 / -1;">Aucune actualité disponible</p>';
         return;
     }
     
@@ -392,7 +392,7 @@ function displayNews() {
     }
     
     if (newsToShow.length === 0) {
-        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%;">Aucun article dans cette catégorie</p>';
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%; grid-column: 1 / -1;">Aucun article dans cette catégorie</p>';
         return;
     }
     
@@ -400,7 +400,8 @@ function displayNews() {
     const articlesToDisplay = newsToShow.slice(0, displayedNewsCount);
     const hasMore = newsToShow.length > displayedNewsCount;
     
-    container.innerHTML = articlesToDisplay.map(article => {
+    // CORRECTION: Créer le HTML des articles
+    const articlesHTML = articlesToDisplay.map(article => {
         const sourceIcon = getSourceIcon(article.source);
         const categoryBadge = getCategoryBadgeStyled(article.detectedCategory);
         
@@ -433,22 +434,26 @@ function displayNews() {
         `;
     }).join('');
     
-    // Bouton "Charger plus" - Simple et élégant
+    // CORRECTION: Mettre à jour le container avec les articles
+    container.innerHTML = articlesHTML;
+    
+    // CORRECTION: Ajouter le bouton "Charger plus" dans un conteneur avec grid-column: 1 / -1
     if (hasMore) {
-        container.innerHTML += `
-            <div style="width: 100%; display: flex; justify-content: center; padding: 20px; grid-column: 1 / -1;">
-                <button onclick="loadMoreNews()" class="load-more-btn">
-                    <span style="font-size: 20px; margin-right: 10px;">📰</span>
-                    Charger plus d'articles
-                </button>
-            </div>
+        const loadMoreContainer = document.createElement('div');
+        loadMoreContainer.className = 'load-more-container';
+        loadMoreContainer.style.cssText = 'grid-column: 1 / -1; width: 100%; display: flex; justify-content: center; padding: 20px; margin-top: 10px;';
+        loadMoreContainer.innerHTML = `
+            <button onclick="loadMoreNews()" class="load-more-btn">
+                <span style="font-size: 20px; margin-right: 10px;">📰</span>
+                Charger plus d'articles
+            </button>
         `;
+        container.appendChild(loadMoreContainer);
     } else if (newsToShow.length > 30) {
-        container.innerHTML += `
-            <div style="width: 100%; text-align: center; padding: 20px; color: var(--cyan); grid-column: 1 / -1;">
-                <p style="font-size: 16px;">✅ Vous avez tout vu !</p>
-            </div>
-        `;
+        const endMessage = document.createElement('div');
+        endMessage.style.cssText = 'grid-column: 1 / -1; width: 100%; text-align: center; padding: 20px; color: var(--cyan);';
+        endMessage.innerHTML = '<p style="font-size: 16px;">✅ Vous avez tout vu !</p>';
+        container.appendChild(endMessage);
     }
 }
 
@@ -545,8 +550,8 @@ function showLoading(containerId) {
     const container = document.getElementById(containerId);
     if (container) {
         container.innerHTML = `
-            <div style="text-align: center; padding: 60px 20px; color: var(--cyan); font-size: 18px;">
-                <div class="loading">⏳ Chargement en cours...</div>
+            <div class="loading" style="grid-column: 1 / -1;">
+                ⏳ Chargement en cours...
             </div>
         `;
     }
@@ -558,7 +563,7 @@ function showError(message) {
         const container = document.getElementById(id);
         if (container) {
             container.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: var(--yellow);">
+                <div style="text-align: center; padding: 40px; color: var(--yellow); grid-column: 1 / -1;">
                     <p style="font-size: 24px; margin-bottom: 20px;">⚠️</p>
                     <p style="font-size: 18px; margin-bottom: 10px;">${message}</p>
                     <button onclick="location.reload()" 

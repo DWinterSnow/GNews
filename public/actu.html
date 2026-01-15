@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GNews - Actualités Gaming</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Actualités Gaming - GNews</title>
+    <link rel="stylesheet" href="css/actu.css">
 </head>
 <body>
     <header class="header">
@@ -13,14 +13,15 @@
                 <h1 class="logo">GNews</h1>
                 <nav class="nav">
                     <ul>
-                        <li><a href="index.html" class="nav-link active">Accueil</a></li>
-                        <li><a href="actu.html" class="nav-link">Actualités</a></li>
+                        <li><a href="index.html" class="nav-link">Accueil</a></li>
+                        <li><a href="actualites.html" class="nav-link active">Actualités</a></li>
                         <li><a href="jeux.html" class="nav-link">Jeux</a></li>
+                        <li><a href="#" class="nav-link">Communauté</a></li>
                     </ul>
                 </nav>
                 <div class="header-actions">
                     <div class="search-box">
-                        <input type="search" placeholder="Quel jeu vous cherchez ?" id="searchInput">
+                        <input type="search" placeholder="Rechercher une actualité..." id="searchInput">
                         <button class="search-btn" onclick="performSearch()">🔍</button>
                     </div>
                     <button class="icon-btn">
@@ -39,81 +40,97 @@
         </div>
     </header>
 
-    <section class="section-highlight">
+    <section class="hero-section">
         <div class="container">
-            <h2 class="section-title">
-                <span class="icon">
-                    <svg width="28" height="28" viewBox="0 0 32 32" fill="#eac035">
-                        <path d="M28.1 18.1v7.9c0 .6-.3 1-1 1-.2 0-.6-.4-1.1-.9V4.9c.5-.5.9-.9 1.1-.9.7 0 1 .4 1 1v8.1c1.4 0 2.6 1.1 2.6 2.5s-1.3 2.5-2.6 2.5zM12 20h0V11c6.9 0 10.9-3 13.1-5.1v19.2c-2.1-2.1-6.2-5.1-13.1-5.1zM8 28l-2-7.9H4s-.6-1.3-.9-3h-1.1c-.6 0-1-.4-1-1v-1c0-.6.4-1 1-1h1.1c.3-1.6.9-3 .9-3h7v9H9l.3 1h1l.5 2h-1l1.2 4.9H8z"/>
-                    </svg>
-                </span>
-                Dernières actualités à ne pas manquer
-            </h2>
-            <div class="featured-grid" id="featuredArticles"></div>
-        </div>
-    </section>
-
-    <section class="section-dark">
-        <div class="container">
-            <div class="platform-tabs">
-                <button class="tab-btn" onclick="switchTab('upcoming')">
-                    <span class="icon">🎮</span>
-                    Prochaines sorties
-                </button>
-                <button class="tab-btn active" onclick="switchTab('trending')">
-                    <span class="icon">🏆</span>
-                    Top Tendance
-                </button>
-                <button class="tab-btn" onclick="switchTab('recent')">
-                    <span class="icon">🆕</span>
-                    Sorties Récentes
-                </button>
-            </div>
-
-            <div class="platform-filters">
-                <button class="filter-btn active" data-platform="tout" onclick="filterByPlatform('tout')">Tout</button>
-                <button class="filter-btn" data-platform="pc" onclick="filterByPlatform('pc')">PC</button>
-                <button class="filter-btn" data-platform="vr" onclick="filterByPlatform('vr')">VR</button>
-                <button class="filter-btn" data-platform="playstation" onclick="filterByPlatform('playstation')">PlayStation</button>
-                <button class="filter-btn" data-platform="xbox" onclick="filterByPlatform('xbox')">Xbox</button>
-                <button class="filter-btn" data-platform="switch" onclick="filterByPlatform('switch')">Switch</button>
-            </div>
-
-            <div id="upcomingContent" class="tab-content">
-                <div class="games-grid" id="upcomingGames">
-                    <div class="loading">⏳ Chargement des prochaines sorties...</div>
-                </div>
-            </div>
-
-            <div id="trendingContent" class="tab-content active">
-                <div class="games-grid" id="trendingGames">
-                    <div class="loading">⏳ Chargement des jeux populaires...</div>
-                </div>
-            </div>
-
-            <div id="recentContent" class="tab-content">
-                <div class="games-grid" id="recentGames">
-                    <div class="loading">⏳ Chargement des sorties récentes...</div>
-                </div>
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    <span class="icon">📰</span>
+                    Toute l'actualité Gaming
+                </h1>
+                <p class="hero-subtitle">Restez informé des dernières nouvelles, sorties et événements du monde du jeu vidéo</p>
             </div>
         </div>
     </section>
 
-    <section class="section-news">
+    <section class="filters-section">
         <div class="container">
-            <h2 class="section-title">
-                <span class="icon">🎮</span>
-                Actualité des Jeux
-            </h2>
-            <div class="news-filters">
-                <button class="filter-btn active" data-filter="tout">Tout</button>
-                <button class="filter-btn" data-filter="guide">Guide</button>
-                <button class="filter-btn" data-filter="teste">Test</button>
-                <button class="filter-btn" data-filter="patch">Patch</button>
-                <button class="filter-btn" data-filter="e-sport">E-Sport</button>
-                <button class="sort-btn">⚡</button>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <h3 class="filter-title">Catégories</h3>
+                    <div class="category-filters">
+                        <button class="filter-btn active" data-category="tout" onclick="filterByCategory('tout')">
+                            <span class="filter-icon">🎮</span> Tout
+                        </button>
+                        <button class="filter-btn" data-category="guide" onclick="filterByCategory('guide')">
+                            <span class="filter-icon">📖</span> Guides
+                        </button>
+                        <button class="filter-btn" data-category="teste" onclick="filterByCategory('teste')">
+                            <span class="filter-icon">⭐</span> Tests
+                        </button>
+                        <button class="filter-btn" data-category="patch" onclick="filterByCategory('patch')">
+                            <span class="filter-icon">🔧</span> Patchs
+                        </button>
+                        <button class="filter-btn" data-category="e-sport" onclick="filterByCategory('e-sport')">
+                            <span class="filter-icon">🏆</span> E-Sport
+                        </button>
+                        <button class="filter-btn" data-category="discussion" onclick="filterByCategory('discussion')">
+                            <span class="filter-icon">💬</span> Discussions
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <h3 class="filter-title">Sources</h3>
+                    <div class="source-filters">
+                        <button class="source-btn active" data-source="tout" onclick="filterBySource('tout')">
+                            Toutes les sources
+                        </button>
+                        <button class="source-btn" data-source="reddit" onclick="filterBySource('reddit')">
+                            💬 Reddit
+                        </button>
+                        <button class="source-btn" data-source="rss" onclick="filterBySource('rss')">
+                            📰 Sites Gaming
+                        </button>
+                        <button class="source-btn" data-source="guardian" onclick="filterBySource('guardian')">
+                            🗞️ The Guardian
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <h3 class="filter-title">Tri</h3>
+                    <div class="sort-filters">
+                        <button class="sort-btn active" onclick="sortNews('recent')">
+                            ⏰ Plus récent
+                        </button>
+                        <button class="sort-btn" onclick="sortNews('popular')">
+                            🔥 Populaire
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="news-list" id="newsList">
+
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-value" id="totalArticles">0</span>
+                    <span class="stat-label">Articles</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="displayedArticles">0</span>
+                    <span class="stat-label">Affichés</span>
+                </div>
+                <div class="stat-item">
+                    <button class="refresh-btn" onclick="refreshNews()">
+                        🔄 Actualiser
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="news-section">
+        <div class="container">
+            <div class="news-grid" id="newsGrid">
                 <div class="loading">⏳ Chargement des actualités...</div>
             </div>
         </div>
@@ -196,6 +213,6 @@
         </div>
     </footer>
 
-    <script src="js/app.js"></script>
+    <script src="js/actualites.js"></script>
 </body>
 </html>

@@ -33,7 +33,7 @@ body {
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1300px;
     margin: 0 auto;
     padding: 0 20px;
 }
@@ -188,6 +188,7 @@ body {
     color: var(--cyan);
     width: 100% !important;
     margin: 0 auto !important;
+    grid-column: 1 / -1 !important;
 }
 
 .loading::after {
@@ -234,8 +235,8 @@ body {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
     gap: 15px;
-    height: 60vh;
-    min-height: 450px;
+    height: 50vh;
+    min-height: 380px;
 }
 
 .featured-grid > p {
@@ -286,7 +287,7 @@ body {
 }
 
 .featured-content {
-    padding: 25px;
+    padding: 20px;
     background: linear-gradient(180deg, transparent 0%, rgba(10, 30, 100, 0.7) 50%, rgba(10, 30, 100, 0.95) 100%);
     position: absolute;
     bottom: 0;
@@ -295,28 +296,28 @@ body {
     z-index: 2;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .featured-title {
     color: var(--white);
-    font-size: 20px;
-    margin-bottom: 15px;
+    font-size: 18px;
+    margin-bottom: 12px;
     font-weight: 600;
 }
 
 .genre-tags {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
 .genre-tag {
     background: linear-gradient(135deg, var(--purple), var(--blue));
     color: var(--white);
-    padding: 4px 12px;
+    padding: 4px 10px;
     border-radius: 15px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     border: 1px solid rgba(37, 244, 238, 0.3);
     transition: all 0.3s;
@@ -411,16 +412,16 @@ body {
     display: block;
 }
 
-/* ==================== GAMES GRID - SCROLL HORIZONTAL ==================== */
+/* ==================== GAMES GRID - SCROLL HORIZONTAL - TAILLE RÉDUITE ==================== */
 .games-grid {
     display: flex;
-    gap: 20px;
+    gap: 15px;
     overflow-x: auto;
     overflow-y: hidden;
     padding: 20px 10px;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
-    min-height: 320px;
+    min-height: 280px;
     align-items: center;
     justify-content: center;
 }
@@ -455,10 +456,10 @@ body {
 .game-card {
     background: linear-gradient(135deg, rgba(145, 78, 255, 0.3), rgba(16, 21, 157, 0.3));
     border-radius: 15px;
-    padding: 15px;
-    min-width: 200px;
-    max-width: 200px;
-    height: 320px;
+    padding: 12px;
+    min-width: 170px;
+    max-width: 170px;
+    height: 260px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -480,48 +481,48 @@ body {
 
 .game-card-image {
     width: 100%;
-    height: 180px;
+    height: 140px;
     object-fit: cover;
     border-radius: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 .game-card-title {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--white);
     line-height: 1.3;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .game-card-rating {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    margin-top: 8px;
-    font-size: 16px;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 14px;
     color: var(--yellow);
 }
 
 .game-card-rating .rating-value {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--white);
     background: linear-gradient(135deg, var(--purple), var(--blue));
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 10px;
     border: 1px solid var(--cyan);
 }
 
 .game-card-date {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--cyan);
-    margin-top: 6px;
-    margin-bottom: 6px;
+    margin-top: 5px;
+    margin-bottom: 5px;
     font-weight: 600;
     background: rgba(37, 244, 238, 0.1);
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 8px;
     border: 1px solid rgba(37, 244, 238, 0.3);
 }
@@ -556,25 +557,26 @@ body {
     box-shadow: 0 5px 20px rgba(37, 244, 238, 0.5);
 }
 
-/* ==================== NEWS LIST - GRILLE RESPONSIVE ==================== */
+/* ==================== NEWS LIST - GRILLE RESPONSIVE - TAILLE RÉDUITE ==================== */
 .news-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
     min-height: 300px;
     width: 100%;
 }
 
-.news-list > p {
+.news-list > p,
+.news-list > div.loading {
     grid-column: 1 / -1;
     text-align: center;
     margin: auto;
 }
 
-/* ==================== NEWS CARD ==================== */
+/* ==================== NEWS CARD - TAILLE RÉDUITE ==================== */
 .news-card {
     background: linear-gradient(135deg, rgba(145, 78, 255, 0.2), rgba(16, 21, 157, 0.3));
-    border-radius: 20px;
+    border-radius: 18px;
     overflow: hidden;
     box-shadow: 0 8px 30px var(--shadow);
     transition: all 0.4s;
@@ -582,7 +584,7 @@ body {
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
-    height: 420px;
+    height: 360px;
     cursor: pointer;
 }
 
@@ -594,7 +596,7 @@ body {
 
 .news-image {
     width: 100%;
-    height: 160px;
+    height: 140px;
     object-fit: cover;
     transition: transform 0.4s;
     flex-shrink: 0;
@@ -605,7 +607,7 @@ body {
 }
 
 .news-content {
-    padding: 15px;
+    padding: 14px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -613,8 +615,8 @@ body {
 
 .news-title {
     color: var(--white);
-    font-size: 15px;
-    margin-bottom: 10px;
+    font-size: 14px;
+    margin-bottom: 8px;
     font-weight: 600;
     line-height: 1.3;
     display: -webkit-box;
@@ -639,14 +641,50 @@ body {
 .source-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     background: rgba(37, 244, 238, 0.2);
     color: var(--cyan);
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     border: 1px solid rgba(37, 244, 238, 0.4);
+}
+
+/* ==================== BOUTON "CHARGER PLUS" ==================== */
+.load-more-btn {
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    color: var(--white);
+    border: 2px solid var(--cyan);
+    padding: 15px 40px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 16px;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 5px 20px rgba(37, 244, 238, 0.3);
+}
+
+.load-more-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 8px 30px rgba(37, 244, 238, 0.5);
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+}
+
+.load-more-btn:active {
+    transform: translateY(-1px) scale(1.02);
+}
+
+.load-more-container {
+    grid-column: 1 / -1 !important;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    margin-top: 10px;
 }
 
 /* ==================== FOOTER ==================== */
@@ -798,12 +836,12 @@ body {
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 1200px) {
     .news-list {
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     }
     
     .game-card {
-        min-width: 180px;
-        max-width: 180px;
+        min-width: 160px;
+        max-width: 160px;
     }
 }
 
@@ -816,6 +854,7 @@ body {
         grid-template-columns: 1fr;
         grid-template-rows: auto;
         height: auto;
+        min-height: 350px;
     }
     
     .featured-card.large {
@@ -824,17 +863,17 @@ body {
     }
     
     .news-list {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     }
     
     .game-card {
-        min-width: 180px;
-        max-width: 180px;
-        height: 290px;
+        min-width: 160px;
+        max-width: 160px;
+        height: 240px;
     }
 
     .game-card-image {
-        height: 140px;
+        height: 120px;
     }
     
     .footer-content {
@@ -860,19 +899,20 @@ body {
     }
     
     .game-card {
-        min-width: 150px;
-        max-width: 150px;
-        height: 260px;
+        min-width: 140px;
+        max-width: 140px;
+        height: 220px;
     }
 
     .game-card-image {
-        height: 120px;
+        height: 110px;
     }
     
     .news-card {
         width: 100%;
-        max-width: 400px;
+        max-width: 380px;
         margin: 0 auto;
+        height: 340px;
     }
     
     .footer-content {
