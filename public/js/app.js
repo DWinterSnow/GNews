@@ -1,4 +1,4 @@
-// app.js - VERSION CORRIGÉE - Chargement infini fixé
+// app.js - VERSION CORRIGÉE - Section actualités fixée
 
 let currentTab = 'trending';
 let currentPlatform = 'tout';
@@ -383,6 +383,12 @@ async function loadNews() {
 function filterNews(filter) {
     currentNewsFilter = filter;
     displayedNewsCount = 30;
+    
+    document.querySelectorAll('.news-filters .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
     displayNews();
 }
 
@@ -393,7 +399,7 @@ function loadMoreNews() {
     displayNews();
 }
 
-// Afficher les actualités
+// Afficher les actualités - VERSION CORRIGÉE
 function displayNews() {
     const container = document.getElementById('newsList');
     if (!container) return;
@@ -416,18 +422,29 @@ function displayNews() {
     const articlesToDisplay = newsToShow.slice(0, displayedNewsCount);
     const hasMore = newsToShow.length > displayedNewsCount;
     
+    // Générer le HTML des articles
     const articlesHTML = articlesToDisplay.map(article => {
         const sourceIcon = getSourceIcon(article.source);
         const categoryBadge = getCategoryBadgeStyled(article.detectedCategory);
         
-        const shortDescription = article.description 
-            ? article.description.substring(0, 100) + (article.description.length > 100 ? '...' : '')
-            : '';
+        // Nettoyer et limiter la description
+        let description = article.description || '';
+        description = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+        const shortDescription = description.length > 100 
+            ? description.substring(0, 100) + '...' 
+            : description;
+        
+        // Limiter le titre
+        let title = article.title || 'Sans titre';
+        title = title.replace(/\s+/g, ' ').trim();
+        const shortTitle = title.length > 80 
+            ? title.substring(0, 80) + '...' 
+            : title;
         
         return `
             <div class="news-card" onclick="window.open('${article.url}', '_blank')">
                 <img src="${article.image}" 
-                     alt="${article.title}" 
+                     alt="${shortTitle}" 
                      class="news-image"
                      onerror="this.src='https://via.placeholder.com/800x250/10159d/fff?text=Gaming+News'">
                 <div class="news-content">
@@ -435,7 +452,7 @@ function displayNews() {
                         <span class="source-badge">${sourceIcon} ${article.author}</span>
                         ${categoryBadge}
                     </div>
-                    <h3 class="news-title">${article.title}</h3>
+                    <h3 class="news-title">${shortTitle}</h3>
                     ${shortDescription ? `<p style="color: rgba(255,255,255,0.7); font-size: 13px; line-height: 1.5; margin-top: 8px;">${shortDescription}</p>` : ''}
                     <p style="margin-top: auto; padding-top: 10px; color: var(--cyan); font-size: 12px;">
                         📅 ${formatDate(article.publishedAt)}
@@ -445,22 +462,24 @@ function displayNews() {
         `;
     }).join('');
     
+    // Mettre à jour le container
     container.innerHTML = articlesHTML;
     
+    // Ajouter le bouton "Charger plus" si nécessaire
     if (hasMore) {
-        const loadMoreContainer = document.createElement('div');
-        loadMoreContainer.style.cssText = 'grid-column: 1 / -1; display: flex; justify-content: center; padding: 20px;';
-        loadMoreContainer.innerHTML = `
+        const loadMoreDiv = document.createElement('div');
+        loadMoreDiv.className = 'load-more-container';
+        loadMoreDiv.innerHTML = `
             <button onclick="loadMoreNews()" class="load-more-btn">
                 <span style="font-size: 20px;">📰</span>
                 Charger plus (${newsToShow.length - displayedNewsCount} restants)
             </button>
         `;
-        container.appendChild(loadMoreContainer);
+        container.appendChild(loadMoreDiv);
     } else if (newsToShow.length > 30) {
         const endDiv = document.createElement('div');
-        endDiv.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 20px; color: var(--cyan);';
-        endDiv.innerHTML = '<p>✅ Tous les articles affichés</p>';
+        endDiv.className = 'load-more-container';
+        endDiv.innerHTML = '<p style="color: var(--cyan); font-size: 16px; font-weight: 600;">✅ Tous les articles affichés</p>';
         container.appendChild(endDiv);
     }
 }

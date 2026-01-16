@@ -259,37 +259,30 @@ function displayNews() {
     const newsToShow = filteredNews.slice(0, displayedCount);
     const hasMore = filteredNews.length > displayedCount;
     
-    // Générer le HTML de toutes les cartes
     const newsHTML = newsToShow.map(article => createNewsCard(article)).join('');
-    
-    // Vider et remplir le container
     container.innerHTML = newsHTML;
     
-    // Ajouter le bouton "Charger plus" si nécessaire
     if (hasMore) {
-        const loadMoreDiv = document.createElement('div');
-        loadMoreDiv.className = 'load-more-container';
-        loadMoreDiv.innerHTML = `
-            <button onclick="loadMoreNews()" class="load-more-btn">
-                <span style="font-size: 24px;">📰</span>
-                Charger plus d'articles (${filteredNews.length - displayedCount} restants)
-            </button>
+        const loadMoreHTML = `
+            <div class="load-more-container">
+                <button onclick="loadMoreNews()" class="load-more-btn">
+                    <span style="font-size: 24px;">📰</span>
+                    Charger plus d'articles (${filteredNews.length - displayedCount} restants)
+                </button>
+            </div>
         `;
-        container.appendChild(loadMoreDiv);
+        container.innerHTML += loadMoreHTML;
     } else if (filteredNews.length > 30) {
-        const endDiv = document.createElement('div');
-        endDiv.className = 'load-more-container';
-        endDiv.innerHTML = `
-            <p style="color: var(--cyan); font-size: 18px; font-weight: 600;">
-                ✅ Tous les articles affichés (${filteredNews.length} au total)
-            </p>
+        container.innerHTML += `
+            <div class="load-more-container">
+                <p style="color: var(--cyan); font-size: 18px; font-weight: 600;">
+                    ✅ Tous les articles affichés (${filteredNews.length} au total)
+                </p>
+            </div>
         `;
-        container.appendChild(endDiv);
     }
     
     updateStats();
-    
-    console.log(`✅ Affichage de ${newsToShow.length} articles sur ${filteredNews.length}`);
 }
 
 // Créer une carte d'actualité
