@@ -1,4 +1,4 @@
-// Server.js - VERSION INFINIE - Récupère le maximum d'articles possibles
+// Server.js - VERSION CORRIGÉE - Récupération maximale optimisée
 
 const express = require('express');
 const path = require('path');
@@ -17,14 +17,20 @@ const REDDIT_USER_AGENT = 'GNewsApp/1.0';
 const rssParser = new Parser({
   customFields: {
     item: ['media:content', 'media:thumbnail', 'content:encoded']
-  }
+  },
+  timeout: 10000
 });
 
 // Cache pour TOUS les articles (6 heures)
 const newsCache = {
-  allArticles: [], // TOUS les articles disponibles
+  allArticles: [],
   timestamp: 0,
-  duration: 6 * 60 * 60 * 1000 // 6 heures
+  duration: 6 * 60 * 60 * 1000,
+  stats: {
+    reddit: 0,
+    rss: 0,
+    guardian: 0
+  }
 };
 
 // Middleware
@@ -313,51 +319,59 @@ app.get('/api/genres', async (req, res) => {
   }
 });
 
-// ==================== ACTUALITÉS - RÉCUPÉRATION MAXIMALE ====================
+// ==================== ACTUALITÉS - VERSION OPTIMISÉE ====================
 
-// Reddit - Récupère le MAXIMUM possible (100 articles par subreddit)
+// Reddit - Récupère le MAXIMUM (100 articles par subreddit)
 async function fetchRedditNews() {
   try {
-    const subreddits = ['gaming', 'Games', 'pcgaming', 'truegaming', 'gamernews'];
+    const subreddits = ['gaming', 'Games', 'pcgaming', 'truegaming', 'gamernews', 'IndieGaming'];
     const articles = [];
     
     for (const sub of subreddits) {
-      // Récupérer 100 posts par subreddit (maximum Reddit)
-      const response = await axios.get(`https://www.reddit.com/r/${sub}/hot.json?limit=100`, {
-        headers: { 'User-Agent': REDDIT_USER_AGENT },
-        timeout: 8000
-      });
-      
-      const posts = response.data.data.children;
-      
-      posts.forEach(post => {
-        const data = post.data;
+      try {
+        const response = await axios.get(`https://www.reddit.com/r/${sub}/hot.json?limit=100`, {
+          headers: { 'User-Agent': REDDIT_USER_AGENT },
+          timeout: 10000
+        });
         
-        // Critères plus permissifs pour avoir plus d'articles
-        if (data.ups > 30 && !data.is_video && data.thumbnail !== 'self') {
-          articles.push({
-            source: 'reddit',
-            title: data.title,
-            description: data.selftext ? data.selftext.substring(0, 200) : '',
-            url: `https://www.reddit.com${data.permalink}`,
-            image: data.thumbnail && data.thumbnail.startsWith('http') ? data.thumbnail : data.url,
-            publishedAt: new Date(data.created_utc * 1000).toISOString(),
-            author: `r/${sub}`,
-            category: 'discussion'
-          });
-        }
-      });
+        const posts = response.data.data.children;
+        let validPosts = 0;
+        
+        posts.forEach(post => {
+          const data = post.data;
+          
+          // Critères permissifs pour maximiser les articles
+          if (data.ups > 20 && !data.is_video && data.thumbnail !== 'self') {
+            articles.push({
+              source: 'reddit',
+              title: data.title,
+              description: data.selftext ? data.selftext.substring(0, 200) : '',
+              url: `https://www.reddit.com${data.permalink}`,
+              image: data.thumbnail && data.thumbnail.startsWith('http') ? data.thumbnail : data.url,
+              publishedAt: new Date(data.created_utc * 1000).toISOString(),
+              author: `r/${sub}`,
+              category: 'discussion'
+            });
+            validPosts++;
+          }
+        });
+        
+        console.log(`✅ r/${sub}: ${validPosts} articles récupérés`);
+        
+      } catch (subError) {
+        console.error(`❌ Erreur r/${sub}:`, subError.message);
+      }
     }
     
-    console.log(`✅ Reddit: ${articles.length} articles récupérés`);
+    console.log(`✅ Reddit TOTAL: ${articles.length} articles`);
     return articles;
   } catch (error) {
-    console.error('❌ Erreur Reddit:', error.message);
+    console.error('❌ Erreur Reddit globale:', error.message);
     return [];
   }
 }
 
-// RSS - Récupère TOUS les articles disponibles (30 par source)
+// RSS - Sources corrigées et optimisées
 async function fetchRSSNews() {
   const feeds = [
     { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer' },
@@ -365,9 +379,14 @@ async function fetchRSSNews() {
     { url: 'https://kotaku.com/rss', source: 'Kotaku' },
     { url: 'https://www.destructoid.com/feed/', source: 'Destructoid' },
     { url: 'https://www.polygon.com/rss/index.xml', source: 'Polygon' },
-    { url: 'https://www.ign.com/feed.xml', source: 'IGN' },
+    // IGN - URLs alternatives
+    { url: 'https://feeds.feedburner.com/ign/all', source: 'IGN' },
     { url: 'https://www.eurogamer.net/?format=rss', source: 'Eurogamer' },
-    { url: 'https://www.rockpapershotgun.com/feed', source: 'Rock Paper Shotgun' }
+    { url: 'https://www.rockpapershotgun.com/feed', source: 'Rock Paper Shotgun' },
+    // Sources additionnelles
+    { url: 'https://www.gamesradar.com/all-platforms/news/rss/', source: 'GamesRadar' },
+    { url: 'https://www.vg247.com/feed', source: 'VG247' },
+    { url: 'https://www.escapistmagazine.com/feed/', source: 'Escapist Magazine' }
   ];
   
   const articles = [];
@@ -375,11 +394,14 @@ async function fetchRSSNews() {
   for (const feed of feeds) {
     try {
       const parsedFeed = await rssParser.parseURL(feed.url);
+      const itemsCount = parsedFeed.items.length;
+      let addedCount = 0;
       
-      // Prendre TOUS les articles disponibles dans le feed (jusqu'à 30)
+      // Prendre TOUS les articles disponibles (max 30)
       parsedFeed.items.slice(0, 30).forEach(item => {
         let image = 'https://via.placeholder.com/400x250/10159d/fff?text=Gaming+News';
         
+        // Extraction intelligente de l'image
         if (item['media:content'] && item['media:content'].$?.url) {
           image = item['media:content'].$.url;
         } else if (item['media:thumbnail'] && item['media:thumbnail'].$?.url) {
@@ -401,19 +423,21 @@ async function fetchRSSNews() {
           author: feed.source,
           category: 'article'
         });
+        addedCount++;
       });
       
-      console.log(`✅ ${feed.source}: ${parsedFeed.items.slice(0, 30).length} articles récupérés`);
+      console.log(`✅ ${feed.source}: ${addedCount} articles (${itemsCount} disponibles)`);
       
     } catch (error) {
-      console.error(`❌ Erreur RSS ${feed.source}:`, error.message);
+      console.error(`❌ ${feed.source}: ${error.message}`);
     }
   }
   
+  console.log(`✅ RSS TOTAL: ${articles.length} articles`);
   return articles;
 }
 
-// Guardian - Maximum 50 articles
+// Guardian API
 async function fetchGuardianNews() {
   try {
     const response = await axios.get('https://content.guardianapis.com/search', {
@@ -421,9 +445,10 @@ async function fetchGuardianNews() {
         'api-key': GUARDIAN_API_KEY,
         'section': 'games',
         'show-fields': 'thumbnail,trailText',
-        'page-size': 50 // Maximum Guardian
+        'page-size': 50,
+        'order-by': 'newest'
       },
-      timeout: 8000
+      timeout: 10000
     });
     
     const articles = response.data.response.results.map(article => ({
@@ -437,7 +462,7 @@ async function fetchGuardianNews() {
       category: 'article'
     }));
     
-    console.log(`✅ The Guardian: ${articles.length} articles récupérés`);
+    console.log(`✅ The Guardian: ${articles.length} articles`);
     return articles;
   } catch (error) {
     console.error('❌ Erreur Guardian:', error.message);
@@ -445,9 +470,13 @@ async function fetchGuardianNews() {
   }
 }
 
-// Rafraîchir le cache avec TOUS les articles possibles
+// Rafraîchir le cache avec TOUS les articles
 async function refreshNewsCache() {
-  console.log('📥 Récupération du MAXIMUM d\'articles depuis toutes les sources...');
+  console.log('\n═══════════════════════════════════════════════');
+  console.log('📥 RÉCUPÉRATION MAXIMALE DES ARTICLES');
+  console.log('═══════════════════════════════════════════════\n');
+  
+  const startTime = Date.now();
   
   const [redditNews, rssNews, guardianNews] = await Promise.all([
     fetchRedditNews(),
@@ -455,38 +484,67 @@ async function refreshNewsCache() {
     fetchGuardianNews()
   ]);
   
-  // Combiner TOUS les articles
+  // Combiner tous les articles
   let allArticles = [...redditNews, ...rssNews, ...guardianNews];
   
-  // Trier par date
-  allArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  // Supprimer les doublons basés sur le titre
+  const uniqueArticles = [];
+  const seenTitles = new Set();
   
-  // Stocker TOUT dans le cache
-  newsCache.allArticles = allArticles;
+  allArticles.forEach(article => {
+    const normalizedTitle = article.title.toLowerCase().trim();
+    if (!seenTitles.has(normalizedTitle)) {
+      seenTitles.add(normalizedTitle);
+      uniqueArticles.push(article);
+    }
+  });
+  
+  // Trier par date (plus récents en premier)
+  uniqueArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  
+  // Mettre à jour le cache
+  newsCache.allArticles = uniqueArticles;
   newsCache.timestamp = Date.now();
+  newsCache.stats = {
+    reddit: redditNews.length,
+    rss: rssNews.length,
+    guardian: guardianNews.length
+  };
   
-  console.log(`✅ ${allArticles.length} articles TOTAUX stockés en cache`);
-  console.log(`   - Reddit: ${redditNews.length}`);
-  console.log(`   - RSS: ${rssNews.length}`);
-  console.log(`   - Guardian: ${guardianNews.length}`);
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2);
   
-  return allArticles;
+  console.log('\n═══════════════════════════════════════════════');
+  console.log('✅ RÉCUPÉRATION TERMINÉE');
+  console.log('═══════════════════════════════════════════════');
+  console.log(`📊 Statistiques:`);
+  console.log(`   - Reddit: ${redditNews.length} articles`);
+  console.log(`   - RSS: ${rssNews.length} articles`);
+  console.log(`   - Guardian: ${guardianNews.length} articles`);
+  console.log(`   - Brut: ${allArticles.length} articles`);
+  console.log(`   - Doublons supprimés: ${allArticles.length - uniqueArticles.length}`);
+  console.log(`   - Articles uniques: ${uniqueArticles.length}`);
+  console.log(`⏱️  Temps: ${duration}s`);
+  console.log(`💾 Cache valide: 6 heures`);
+  console.log('═══════════════════════════════════════════════\n');
+  
+  return uniqueArticles;
 }
 
-// Route pour récupérer TOUS les articles (le frontend gère l'affichage progressif)
+// Route principale des actualités
 app.get('/api/news', async (req, res) => {
   try {
     const now = Date.now();
     
-    // Rafraîchir le cache si nécessaire
+    // Rafraîchir si nécessaire
     if (!newsCache.allArticles.length || (now - newsCache.timestamp) > newsCache.duration) {
-      console.log('🔄 Cache expiré, récupération de nouveaux articles...');
+      console.log('🔄 Cache expiré ou vide, rafraîchissement...');
       await refreshNewsCache();
     } else {
-      console.log(`✅ ${newsCache.allArticles.length} articles servis depuis le cache`);
+      const age = Math.floor((now - newsCache.timestamp) / 1000 / 60);
+      console.log(`✅ ${newsCache.allArticles.length} articles servis depuis le cache (âge: ${age} min)`);
     }
     
-    // Renvoyer TOUS les articles (le frontend s'occupe de l'affichage progressif)
+    // Renvoyer tous les articles
     res.json(newsCache.allArticles);
     
   } catch (error) {
@@ -504,28 +562,33 @@ app.get('/api/news/refresh', async (req, res) => {
     await refreshNewsCache();
     res.json({ 
       success: true, 
-      message: 'Cache rafraîchi',
+      message: 'Cache rafraîchi avec succès',
+      stats: newsCache.stats,
       totalArticles: newsCache.allArticles.length
     });
   } catch (error) {
     res.status(500).json({ 
-      error: 'Erreur refresh',
+      error: 'Erreur lors du rafraîchissement',
       details: error.message
     });
   }
 });
 
-// État du cache
+// État détaillé du cache
 app.get('/api/news/status', (req, res) => {
-  const age = Date.now() - newsCache.timestamp;
-  const remaining = newsCache.duration - age;
+  const now = Date.now();
+  const age = now - newsCache.timestamp;
+  const remaining = Math.max(0, newsCache.duration - age);
   
   res.json({
     cached: newsCache.allArticles.length > 0,
+    stats: newsCache.stats,
     totalArticles: newsCache.allArticles.length,
     cacheAge: Math.floor(age / 1000 / 60) + ' minutes',
-    cacheRemaining: Math.floor(Math.max(0, remaining) / 1000 / 60) + ' minutes',
-    nextRefresh: new Date(newsCache.timestamp + newsCache.duration).toLocaleString()
+    cacheRemaining: Math.floor(remaining / 1000 / 60) + ' minutes',
+    cacheDuration: '6 heures',
+    nextRefresh: new Date(newsCache.timestamp + newsCache.duration).toLocaleString('fr-FR'),
+    lastUpdate: new Date(newsCache.timestamp).toLocaleString('fr-FR')
   });
 });
 
@@ -535,6 +598,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Gestion des erreurs
 app.use((err, req, res, next) => {
   console.error('❌ Erreur serveur:', err);
   res.status(500).json({ 
@@ -543,16 +607,27 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+// Démarrage du serveur
+app.listen(PORT, async () => {
+  console.log('\n═══════════════════════════════════════════════');
+  console.log(`🚀 Serveur GNews démarré`);
+  console.log(`📡 URL: http://localhost:${PORT}`);
   console.log('═══════════════════════════════════════════════');
-  console.log(`🚀 Serveur GNews démarré sur http://localhost:${PORT}`);
-  console.log(`📡 API RAWG: Jeux vidéo`);
+  console.log(`🎮 API RAWG: Jeux vidéo`);
   console.log(`📰 Sources actualités:`);
-  console.log(`   - Reddit: 5 subreddits × 100 posts = ~500 articles`);
-  console.log(`   - RSS: 8 sources × 30 articles = ~240 articles`);
+  console.log(`   - Reddit: 6 subreddits × ~100 posts`);
+  console.log(`   - RSS: 11 sources × ~30 articles`);
   console.log(`   - Guardian: ~50 articles`);
-  console.log(`📊 Total potentiel: ~800 articles`);
+  console.log(`📊 Capacité totale: ~1000 articles`);
   console.log(`💾 Cache: 6 heures`);
-  console.log(`🔄 Affichage: 30 articles initiaux + scroll infini`);
+  console.log(`🔄 Affichage: Scroll infini optimisé`);
   console.log('═══════════════════════════════════════════════');
+  
+  // Pré-chargement du cache au démarrage
+  console.log('\n🔄 Pré-chargement du cache...\n');
+  try {
+    await refreshNewsCache();
+  } catch (error) {
+    console.error('❌ Erreur lors du pré-chargement:', error.message);
+  }
 });

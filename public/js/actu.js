@@ -1,4 +1,5 @@
-// État de l'application
+// actualites.js - VERSION CORRIGÉE avec timeout
+
 let allNews = [];
 let filteredNews = [];
 let displayedCount = 30;
@@ -7,6 +8,7 @@ let currentCategory = 'tout';
 let currentSource = 'tout';
 let currentSort = 'recent';
 let searchQuery = '';
+let isLoading = false;
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,50 +36,108 @@ function setupEventListeners() {
     }
 }
 
-// Charger TOUTES les actualités
+// Charger TOUTES les actualités avec TIMEOUT
 async function loadAllNews() {
+    if (isLoading) {
+        console.log('⚠️ Chargement déjà en cours');
+        return;
+    }
+    
+    isLoading = true;
     showLoading();
+    
+    // TIMEOUT de 20 secondes
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     
     try {
         console.log('📥 Chargement de toutes les actualités...');
-        const response = await fetch('/api/news');
+        
+        const response = await fetch('/api/news', {
+            signal: controller.signal,
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-            throw new Error('Erreur lors du chargement des actualités');
+            const errorText = await response.text();
+            throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
         }
         
         const data = await response.json();
+        
+        if (!Array.isArray(data)) {
+            throw new Error('Format de données invalide (attendu: array)');
+        }
         
         allNews = data.map(article => ({
             ...article,
             detectedCategory: detectArticleCategory(article)
         }));
         
-        console.log(`✅ ${allNews.length} articles chargés`);
+        console.log(`✅ ${allNews.length} articles chargés avec succès`);
+        
+        if (allNews.length === 0) {
+            showEmptyState('Aucun article disponible. Le serveur n\'a retourné aucune donnée.');
+            return;
+        }
         
         updateStats();
         applyFilters();
         
     } catch (error) {
-        console.error('❌ Erreur:', error);
-        showError(error.message);
+        clearTimeout(timeoutId);
+        console.error('❌ Erreur chargement:', error);
+        
+        if (error.name === 'AbortError') {
+            showError('⏱️ Délai d\'attente dépassé (20s). Le serveur met trop de temps à répondre. Vérifiez que le serveur est démarré.');
+        } else if (error.message.includes('Failed to fetch')) {
+            showError('🔌 Impossible de se connecter au serveur. Vérifiez que le serveur est démarré sur http://localhost:3000');
+        } else {
+            showError(`Erreur: ${error.message}`);
+        }
+    } finally {
+        isLoading = false;
     }
 }
 
 // Actualiser les news
 async function refreshNews() {
-    const btn = event.target;
-    btn.textContent = '🔄 Actualisation...';
-    btn.disabled = true;
+    if (isLoading) return;
+    
+    const btn = event?.target;
+    if (btn) {
+        btn.textContent = '🔄 Actualisation...';
+        btn.disabled = true;
+    }
     
     try {
-        await fetch('/api/news/refresh');
+        // Forcer le rafraîchissement côté serveur
+        const refreshResponse = await fetch('/api/news/refresh', {
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (refreshResponse.ok) {
+            console.log('✅ Cache serveur rafraîchi');
+        }
+        
+        // Recharger les données
+        allNews = [];
+        filteredNews = [];
         await loadAllNews();
+        
     } catch (error) {
         console.error('❌ Erreur refresh:', error);
+        showError('Erreur lors du rafraîchissement');
     } finally {
-        btn.textContent = '🔄 Actualiser';
-        btn.disabled = false;
+        if (btn) {
+            btn.textContent = '🔄 Actualiser';
+            btn.disabled = false;
+        }
     }
 }
 
@@ -139,7 +199,6 @@ function sortNews(sortType) {
 function applyFilters() {
     let result = [...allNews];
     
-    // Filtre de recherche
     if (searchQuery) {
         result = result.filter(article =>
             article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -147,17 +206,14 @@ function applyFilters() {
         );
     }
     
-    // Filtre de catégorie
     if (currentCategory !== 'tout') {
         result = result.filter(article => article.detectedCategory === currentCategory);
     }
     
-    // Filtre de source
     if (currentSource !== 'tout') {
         result = result.filter(article => article.source === currentSource);
     }
     
-    // Tri
     if (currentSort === 'recent') {
         result.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
     } else if (currentSort === 'popular') {
@@ -176,7 +232,7 @@ function applyFilters() {
 
 // Recherche
 function performSearch() {
-    searchQuery = document.getElementById('searchInput').value.trim();
+    searchQuery = document.getElementById('searchInput')?.value.trim() || '';
     displayedCount = 30;
     applyFilters();
 }
@@ -190,16 +246,13 @@ function loadMoreNews() {
 // Afficher les actualités
 function displayNews() {
     const container = document.getElementById('newsGrid');
-    if (!container) return;
+    if (!container) {
+        console.error('❌ Container #newsGrid introuvable');
+        return;
+    }
     
     if (filteredNews.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">🔍</div>
-                <h3 class="empty-title">Aucune actualité trouvée</h3>
-                <p class="empty-description">Essayez de modifier vos filtres ou votre recherche</p>
-            </div>
-        `;
+        showEmptyState('Aucune actualité trouvée avec ces filtres');
         return;
     }
     
@@ -303,13 +356,11 @@ function updateStats() {
     const displayedEl = document.getElementById('displayedArticles');
     
     if (totalEl) {
-        totalEl.textContent = filteredNews.length;
         animateNumber(totalEl, filteredNews.length);
     }
     
     if (displayedEl) {
         const displayed = Math.min(displayedCount, filteredNews.length);
-        displayedEl.textContent = displayed;
         animateNumber(displayedEl, displayed);
     }
 }
@@ -339,26 +390,73 @@ function formatDate(dateString) {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     
-    if (hours < 1) {
-        return 'À l\'instant';
-    } else if (hours < 24) {
-        return `Il y a ${hours}h`;
-    } else if (days < 7) {
-        return `Il y a ${days}j`;
-    } else {
-        return date.toLocaleDateString('fr-FR', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        });
-    }
+    if (hours < 1) return 'À l\'instant';
+    if (hours < 24) return `Il y a ${hours}h`;
+    if (days < 7) return `Il y a ${days}j`;
+    
+    return date.toLocaleDateString('fr-FR', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
 }
 
 // Afficher le chargement
 function showLoading() {
     const container = document.getElementById('newsGrid');
     if (container) {
-        container.innerHTML = '<div class="loading">⏳ Chargement des actualités...</div>';
+        container.innerHTML = `
+            <div class="loading" style="grid-column: 1 / -1; text-align: center; padding: 80px 20px;">
+                <div style="font-size: 64px; margin-bottom: 20px; animation: pulse 2s ease-in-out infinite;">⏳</div>
+                <div style="font-size: 24px; color: var(--cyan); font-weight: 600; margin-bottom: 15px;">
+                    Chargement des actualités...
+                </div>
+                <div style="color: rgba(255,255,255,0.6); font-size: 14px;">
+                    Récupération depuis Reddit, RSS et The Guardian
+                </div>
+                <div style="margin-top: 20px; color: rgba(255,255,255,0.5); font-size: 12px;">
+                    Si le chargement prend plus de 20 secondes, vérifiez que le serveur est démarré
+                </div>
+            </div>
+            <style>
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.5; transform: scale(1.1); }
+                }
+            </style>
+        `;
+    }
+}
+
+// Afficher état vide
+function showEmptyState(message) {
+    const container = document.getElementById('newsGrid');
+    if (container) {
+        container.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                <div class="empty-icon" style="font-size: 64px; margin-bottom: 20px;">🔍</div>
+                <h3 class="empty-title" style="font-size: 24px; color: var(--cyan); margin-bottom: 15px;">
+                    Aucune actualité trouvée
+                </h3>
+                <p class="empty-description" style="color: rgba(255,255,255,0.7); font-size: 16px; margin-bottom: 30px;">
+                    ${message}
+                </p>
+                <button onclick="loadAllNews()" style="
+                    padding: 12px 30px;
+                    background: linear-gradient(45deg, var(--purple), var(--cyan));
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.3s;
+                " onmouseover="this.style.transform='scale(1.05)'" 
+                   onmouseout="this.style.transform='scale(1)'">
+                    🔄 Réessayer
+                </button>
+            </div>
+        `;
     }
 }
 
@@ -367,11 +465,32 @@ function showError(message) {
     const container = document.getElementById('newsGrid');
     if (container) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">⚠️</div>
-                <h3 class="empty-title">Erreur de chargement</h3>
-                <p class="empty-description">${message}</p>
-                <button onclick="loadAllNews()" class="refresh-btn" style="margin-top: 20px;">
+            <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                <div class="empty-icon" style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+                <h3 class="empty-title" style="font-size: 24px; color: var(--yellow); margin-bottom: 15px;">
+                    Erreur de chargement
+                </h3>
+                <p class="empty-description" style="color: rgba(255,255,255,0.8); font-size: 16px; margin-bottom: 10px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    ${message}
+                </p>
+                <div style="margin: 20px 0; padding: 15px; background: rgba(255,193,7,0.1); border-radius: 10px; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    <p style="color: var(--yellow); font-size: 14px; margin: 0;">
+                        💡 <strong>Conseil:</strong> Vérifiez que le serveur est démarré avec <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">node server.js</code>
+                    </p>
+                </div>
+                <button onclick="loadAllNews()" class="refresh-btn" style="
+                    margin-top: 20px;
+                    padding: 15px 35px;
+                    background: linear-gradient(45deg, var(--purple), var(--cyan));
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: transform 0.3s;
+                " onmouseover="this.style.transform='scale(1.05)'" 
+                   onmouseout="this.style.transform='scale(1)'">
                     🔄 Réessayer
                 </button>
             </div>
