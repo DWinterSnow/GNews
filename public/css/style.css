@@ -415,17 +415,20 @@ body {
 }
 
 /* ==================== GAMES GRID - SCROLL HORIZONTAL ==================== */
+/* ==================== GAMES GRID - SCROLL HORIZONTAL CORRIGÉ ==================== */
 .games-grid {
-    display: flex;
+    display: flex !important;
     gap: 15px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     padding: 20px 10px;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     min-height: 280px;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
 }
 
 .games-grid > p,
@@ -433,6 +436,7 @@ body {
     width: 100%;
     text-align: center;
     margin: auto;
+    flex-shrink: 0;
 }
 
 .games-grid::-webkit-scrollbar {
@@ -459,8 +463,9 @@ body {
     background: linear-gradient(135deg, rgba(145, 78, 255, 0.3), rgba(16, 21, 157, 0.3));
     border-radius: 15px;
     padding: 12px;
-    min-width: 170px;
-    max-width: 170px;
+    min-width: 170px !important;
+    max-width: 170px !important;
+    width: 170px !important;
     height: 260px;
     display: flex;
     flex-direction: column;
@@ -471,7 +476,7 @@ body {
     border: 2px solid transparent;
     text-align: center;
     backdrop-filter: blur(5px);
-    flex-shrink: 0;
+    flex-shrink: 0 !important;
 }
 
 .game-card:hover {

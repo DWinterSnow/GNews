@@ -1,4 +1,4 @@
-// app.js - VERSION CORRIGÉE - Section actualités fixée
+// app.js - VERSION FINALE CORRIGÉE
 
 let currentTab = 'trending';
 let currentPlatform = 'tout';
@@ -77,33 +77,89 @@ function switchTab(tab) {
     
     if (allGames[tab].length === 0) {
         loadGames(tab);
+    } else {
+        displayGames(allGames[tab], tab);
     }
 }
 
-// Filtrer par plateforme
-function filterByPlatform(platform) {
+// Filtrer par plateforme - VERSION AVEC APPEL API
+async function filterByPlatform(platform) {
     currentPlatform = platform;
     
+    // Mettre à jour les boutons actifs
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
+    // "Tout" = afficher tous les jeux déjà chargés
     if (platform === 'tout') {
+        console.log(`📊 Affichage de TOUS les jeux: ${allGames[currentTab].length}`);
         displayGames(allGames[currentTab], currentTab);
-    } else {
-        const filtered = allGames[currentTab].filter(game => {
-            if (!game.platforms) return false;
-            return game.platforms.some(p => {
-                const name = p.platform.name.toLowerCase();
-                return name.includes(platform) || 
-                       (platform === 'pc' && name.includes('pc')) ||
-                       (platform === 'playstation' && (name.includes('playstation') || name.includes('ps'))) ||
-                       (platform === 'xbox' && name.includes('xbox')) ||
-                       (platform === 'switch' && name.includes('switch')) ||
-                       (platform === 'vr' && (name.includes('vr') || name.includes('virtual reality')));
-            });
-        });
-        displayGames(filtered, currentTab);
+        return;
     }
+    
+    console.log(`🔍 Filtrage par plateforme: ${platform.toUpperCase()}`);
+    
+    // Pour VR, PC, PlayStation, Xbox, Switch : faire un appel API dédié
+    if (['vr', 'pc', 'playstation', 'xbox', 'switch'].includes(platform)) {
+        const containerId = `${currentTab}Games`;
+        showLoading(containerId);
+        
+        try {
+            const response = await fetch(`/api/games/platform/${platform}?upcoming=${currentTab === 'upcoming'}`);
+            
+            if (!response.ok) {
+                throw new Error('Erreur API plateforme');
+            }
+            
+            const data = await response.json();
+            
+            if (data.results && data.results.length > 0) {
+                console.log(`✅ ${data.results.length} jeux ${platform.toUpperCase()} récupérés de l'API`);
+                displayGames(data.results, currentTab);
+            } else {
+                document.getElementById(containerId).innerHTML = `
+                    <p style="color: var(--yellow); padding: 40px; text-align: center; width: 100%;">
+                        Aucun jeu ${platform.toUpperCase()} disponible
+                    </p>
+                `;
+            }
+        } catch (error) {
+            console.error(`❌ Erreur chargement ${platform}:`, error);
+            document.getElementById(containerId).innerHTML = `
+                <p style="color: var(--yellow); padding: 40px; text-align: center;">
+                    Erreur de chargement
+                </p>
+            `;
+        }
+        return;
+    }
+    
+    // Sinon, filtrage côté client (fallback)
+    console.log(`📊 Filtrage côté client pour: ${platform}`);
+    const platformMatches = {
+        'pc': ['pc', 'windows', 'linux', 'macos', 'mac os'],
+        'playstation': ['playstation', 'ps5', 'ps4', 'ps3', 'ps2', 'ps vita', 'psp', 'ps '],
+        'xbox': ['xbox', 'xbox one', 'xbox 360', 'xbox series'],
+        'switch': ['nintendo switch', 'switch'],
+        'vr': ['playstation vr', 'psvr', 'ps vr', 'oculus', 'meta quest', 'htc vive', 'valve index', 'vr', 'virtual reality', 'playstation vr2']
+    };
+    
+    const keywords = platformMatches[platform] || [platform];
+    
+    const filtered = allGames[currentTab].filter(game => {
+        if (!game.platforms || !Array.isArray(game.platforms) || game.platforms.length === 0) {
+            return false;
+        }
+        
+        const gamePlatforms = game.platforms.map(p => p.platform.name.toLowerCase());
+        
+        return gamePlatforms.some(platformName => {
+            return keywords.some(keyword => platformName.includes(keyword));
+        });
+    });
+    
+    console.log(`✅ ${filtered.length} jeux trouvés pour ${platform.toUpperCase()}`);
+    displayGames(filtered, currentTab);
 }
 
 // Charger les jeux en vedette
@@ -113,7 +169,7 @@ async function loadFeaturedGames() {
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
         console.log('📥 Chargement des jeux en vedette');
-        const response = await fetch('/api/games/popular', {
+        const response = await fetch('/api/games/trending', {
             signal: controller.signal
         });
         
@@ -180,7 +236,7 @@ async function loadGames(type) {
     }
     
     const endpoints = {
-        trending: '/api/games/popular',
+        trending: '/api/games/trending',
         upcoming: '/api/games/upcoming',
         recent: '/api/games/new-releases'
     };
@@ -238,7 +294,7 @@ function displayGames(games, type) {
     if (!container) return;
     
     if (!games || games.length === 0) {
-        container.innerHTML = '<p style="color: var(--yellow); padding: 40px; text-align: center;">Aucun jeu trouvé</p>';
+        container.innerHTML = '<p style="color: var(--yellow); padding: 40px; text-align: center; width: 100%;">Aucun jeu trouvé</p>';
         return;
     }
 
@@ -399,7 +455,7 @@ function loadMoreNews() {
     displayNews();
 }
 
-// Afficher les actualités - VERSION CORRIGÉE
+// Afficher les actualités
 function displayNews() {
     const container = document.getElementById('newsList');
     if (!container) return;
@@ -422,19 +478,16 @@ function displayNews() {
     const articlesToDisplay = newsToShow.slice(0, displayedNewsCount);
     const hasMore = newsToShow.length > displayedNewsCount;
     
-    // Générer le HTML des articles
     const articlesHTML = articlesToDisplay.map(article => {
         const sourceIcon = getSourceIcon(article.source);
         const categoryBadge = getCategoryBadgeStyled(article.detectedCategory);
         
-        // Nettoyer et limiter la description
         let description = article.description || '';
         description = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
         const shortDescription = description.length > 100 
             ? description.substring(0, 100) + '...' 
             : description;
         
-        // Limiter le titre
         let title = article.title || 'Sans titre';
         title = title.replace(/\s+/g, ' ').trim();
         const shortTitle = title.length > 80 
@@ -462,10 +515,8 @@ function displayNews() {
         `;
     }).join('');
     
-    // Mettre à jour le container
     container.innerHTML = articlesHTML;
     
-    // Ajouter le bouton "Charger plus" si nécessaire
     if (hasMore) {
         const loadMoreDiv = document.createElement('div');
         loadMoreDiv.className = 'load-more-container';

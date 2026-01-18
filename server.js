@@ -1,4 +1,4 @@
-// Server.js - VERSION CORRIGÉE - Récupération maximale optimisée
+// Server.js - VERSION CORRIGÉE TRENDING & VR
 
 const express = require('express');
 const path = require('path');
@@ -84,6 +84,88 @@ function filterAdultContent(games) {
     return true;
   });
 }
+
+// ✨ TRENDING - VERSION SIMPLIFIÉE QUI FONCTIONNE
+app.get('/api/games/trending', async (req, res) => {
+  try {
+    console.log('🔥 Récupération des jeux TRENDING...');
+    
+    // Approche simple : jeux populaires récents (2 dernières années)
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    const dateString = twoYearsAgo.toISOString().split('T')[0];
+    const todayString = new Date().toISOString().split('T')[0];
+    
+    const response = await axios.get(`${RAWG_BASE_URL}/games`, {
+      params: {
+        key: RAWG_API_KEY,
+        page_size: 40,
+        dates: `${dateString},${todayString}`,
+        ordering: '-rating,-added', // Meilleure note + popularité
+        exclude_tags: '80',
+        exclude_additions: true
+      },
+      timeout: 10000
+    });
+    
+    console.log(`📊 API retournée: ${response.data.results.length} jeux bruts`);
+    
+    // Filtrer contenu adulte
+    let games = filterAdultContent(response.data.results);
+    console.log(`📊 Après filtre adulte: ${games.length} jeux`);
+    
+    // Filtrer pour garder seulement les jeux avec un minimum de popularité
+    games = games.filter(game => (game.added || 0) > 1000);
+    console.log(`📊 Après filtre popularité (>1000): ${games.length} jeux`);
+    
+    // Calculer un score de tendance et trier
+    games = games.map(game => ({
+      ...game,
+      trendScore: (game.rating || 0) * 1000 + Math.log10((game.added || 0) + 1) * 100 + (game.metacritic || 0)
+    })).sort((a, b) => b.trendScore - a.trendScore);
+    
+    // Debug : afficher les 5 premiers
+    if (games.length > 0) {
+      console.log('🏆 Top 5 jeux tendance:');
+      games.slice(0, 5).forEach((game, i) => {
+        console.log(`  ${i+1}. ${game.name}`);
+        console.log(`     - Rating: ${game.rating || 'N/A'}/5`);
+        console.log(`     - Joueurs: ${game.added || 0}`);
+        console.log(`     - Métacritique: ${game.metacritic || 'N/A'}`);
+        console.log(`     - Date: ${game.released || 'N/A'}`);
+      });
+    } else {
+      console.warn('⚠️ AUCUN jeu trouvé ! Essai de fallback...');
+      
+      // FALLBACK : si aucun jeu, utiliser une recherche sans filtre de date
+      const fallbackResponse = await axios.get(`${RAWG_BASE_URL}/games`, {
+        params: {
+          key: RAWG_API_KEY,
+          page_size: 40,
+          ordering: '-rating,-added',
+          exclude_tags: '80',
+          exclude_additions: true
+        },
+        timeout: 10000
+      });
+      
+      games = filterAdultContent(fallbackResponse.data.results);
+      console.log(`📊 FALLBACK: ${games.length} jeux récupérés`);
+    }
+    
+    res.json({
+      count: games.length,
+      results: games.slice(0, 20)
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur trending:', error.message);
+    res.status(500).json({ 
+      error: 'Erreur trending',
+      details: error.message
+    });
+  }
+});
 
 app.get('/api/games/popular', async (req, res) => {
   try {
@@ -217,13 +299,147 @@ app.get('/api/games/search', async (req, res) => {
   }
 });
 
+// 🥽 VR GAMES - VERSION OPTIMISÉE : Moins de jeux, chargement rapide
+app.get('/api/games/vr-games', async (req, res) => {
+  try {
+    console.log('🥽 Recherche VR RAPIDE...');
+    
+    // Liste RÉDUITE aux 20 jeux VR les plus populaires (au lieu de 50+)
+    const topVRGames = [
+      // Top 10 absolus
+      'Beat Saber',
+      'Half-Life: Alyx',
+      'VRChat',
+      'Gorilla Tag',
+      'Superhot VR',
+      'Boneworks',
+      'Pavlov VR',
+      'Rec Room',
+      'The Walking Dead: Saints & Sinners',
+      'Resident Evil 4 VR',
+      
+      // Top 11-20
+      'Job Simulator',
+      'Pistol Whip',
+      'Arizona Sunshine',
+      'Blade and Sorcery',
+      'Moss',
+      'Population: One',
+      'Into the Radius',
+      'Contractors',
+      'Astro Bot Rescue Mission',
+      'Walkabout Mini Golf VR'
+    ];
+    
+    const vrGames = [];
+    const foundGames = new Set();
+    
+    console.log(`📡 Recherche de ${topVRGames.length} jeux VR...`);
+    
+    for (const gameName of topVRGames) {
+      try {
+        const response = await axios.get(`${RAWG_BASE_URL}/games`, {
+          params: {
+            key: RAWG_API_KEY,
+            search: gameName,
+            page_size: 3,
+            exclude_additions: true
+          },
+          timeout: 5000
+        });
+        
+        const results = response.data.results || [];
+        
+        // Chercher la meilleure correspondance
+        let bestMatch = null;
+        let bestScore = 0;
+        
+        for (const game of results) {
+          const gameNameLower = game.name.toLowerCase().trim();
+          const searchNameLower = gameName.toLowerCase().trim();
+          
+          let score = 0;
+          if (gameNameLower === searchNameLower) {
+            score = 100;
+          } else if (gameNameLower.replace(/[^a-z0-9]/g, '') === searchNameLower.replace(/[^a-z0-9]/g, '')) {
+            score = 95;
+          } else if (gameNameLower.includes(searchNameLower.replace(' vr', ''))) {
+            score = 85;
+          } else if (searchNameLower.includes(gameNameLower)) {
+            score = 75;
+          }
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = game;
+          }
+        }
+        
+        if (bestMatch && bestScore >= 70 && !foundGames.has(bestMatch.id)) {
+          vrGames.push(bestMatch);
+          foundGames.add(bestMatch.id);
+          console.log(`  ✅ ${bestMatch.name}`);
+        }
+        
+        // Pause courte
+        await new Promise(resolve => setTimeout(resolve, 80));
+        
+      } catch (err) {
+        console.log(`  ⚠️ "${gameName}"`);
+      }
+    }
+    
+    // Filtrer contenu adulte
+    let filteredGames = filterAdultContent(vrGames);
+    
+    // Blacklist des faux positifs
+    const blacklist = [
+      'tabletop simulator',
+      'surgeon simulator',
+      'pc building simulator',
+      'house flipper',
+      'powerwash simulator',
+      'car mechanic simulator',
+      'farming simulator',
+      'truck simulator',
+      'bus simulator',
+      'train simulator',
+      'flight simulator',
+      'sims 4',
+      'sims 3'
+    ];
+    
+    filteredGames = filteredGames.filter(game => {
+      const nameLower = game.name.toLowerCase();
+      return !blacklist.some(blocked => nameLower.includes(blocked));
+    });
+    
+    // Trier par popularité
+    filteredGames.sort((a, b) => (b.added || 0) - (a.added || 0));
+    
+    console.log(`✅ ${filteredGames.length} jeux VR trouvés en ${((Date.now() - Date.now()) / 1000).toFixed(1)}s`);
+    
+    res.json({
+      count: filteredGames.length,
+      results: filteredGames.slice(0, 20)
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur VR:', error.message);
+    res.status(500).json({ 
+      error: 'Erreur VR',
+      details: error.message
+    });
+  }
+});
+
 app.get('/api/games/platform/:platform', async (req, res) => {
   const platformMap = {
     'pc': 4,
     'playstation': 18,
     'xbox': 1,
     'switch': 7,
-    'vr': 171
+    'vr': 'vr'  // Cas spécial
   };
   
   const platformId = platformMap[req.params.platform.toLowerCase()];
@@ -232,6 +448,12 @@ app.get('/api/games/platform/:platform', async (req, res) => {
     return res.status(400).json({ 
       error: 'Plateforme invalide' 
     });
+  }
+  
+  // Pour VR, utiliser l'endpoint spécial
+  if (req.params.platform.toLowerCase() === 'vr') {
+    console.log('🥽 Redirection vers endpoint VR spécial');
+    return res.redirect('/api/games/vr-games');
   }
   
   const isUpcoming = req.query.upcoming === 'true';
@@ -257,14 +479,18 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       params.dates = `${todayString},${nextYearString}`;
       params.ordering = 'released';
     } else {
-      params.ordering = '-rating';
-      params.dates = '2023-01-01,2025-12-31';
+      // Pour les jeux tendance, trier par popularité
+      params.ordering = '-added';
     }
+    
+    console.log(`🎮 Recherche jeux pour plateforme: ${req.params.platform} (ID: ${platformId})`);
     
     const response = await axios.get(`${RAWG_BASE_URL}/games`, {
       params: params,
       timeout: 10000
     });
+    
+    console.log(`📊 API retournée: ${response.data.results.length} jeux ${req.params.platform}`);
     
     let filteredGames = filterAdultContent(response.data.results);
     
@@ -280,11 +506,14 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       });
     }
     
+    console.log(`✅ ${filteredGames.length} jeux ${req.params.platform} filtrés`);
+    
     res.json({
       ...response.data,
       results: filteredGames.slice(0, 20)
     });
   } catch (error) {
+    console.error(`❌ Erreur plateforme ${req.params.platform}:`, error.message);
     res.status(error.response?.status || 500).json({ 
       error: 'Erreur lors de la récupération des jeux'
     });
@@ -321,7 +550,6 @@ app.get('/api/genres', async (req, res) => {
 
 // ==================== ACTUALITÉS - VERSION OPTIMISÉE ====================
 
-// Reddit - Récupère le MAXIMUM (100 articles par subreddit)
 async function fetchRedditNews() {
   try {
     const subreddits = ['gaming', 'Games', 'pcgaming', 'truegaming', 'gamernews', 'IndieGaming'];
@@ -340,7 +568,6 @@ async function fetchRedditNews() {
         posts.forEach(post => {
           const data = post.data;
           
-          // Critères permissifs pour maximiser les articles
           if (data.ups > 20 && !data.is_video && data.thumbnail !== 'self') {
             articles.push({
               source: 'reddit',
@@ -371,7 +598,6 @@ async function fetchRedditNews() {
   }
 }
 
-// RSS - Sources corrigées et optimisées
 async function fetchRSSNews() {
   const feeds = [
     { url: 'https://www.pcgamer.com/rss/', source: 'PC Gamer' },
@@ -379,11 +605,9 @@ async function fetchRSSNews() {
     { url: 'https://kotaku.com/rss', source: 'Kotaku' },
     { url: 'https://www.destructoid.com/feed/', source: 'Destructoid' },
     { url: 'https://www.polygon.com/rss/index.xml', source: 'Polygon' },
-    // IGN - URLs alternatives
     { url: 'https://feeds.feedburner.com/ign/all', source: 'IGN' },
     { url: 'https://www.eurogamer.net/?format=rss', source: 'Eurogamer' },
     { url: 'https://www.rockpapershotgun.com/feed', source: 'Rock Paper Shotgun' },
-    // Sources additionnelles
     { url: 'https://www.gamesradar.com/all-platforms/news/rss/', source: 'GamesRadar' },
     { url: 'https://www.vg247.com/feed', source: 'VG247' },
     { url: 'https://www.escapistmagazine.com/feed/', source: 'Escapist Magazine' }
@@ -397,11 +621,9 @@ async function fetchRSSNews() {
       const itemsCount = parsedFeed.items.length;
       let addedCount = 0;
       
-      // Prendre TOUS les articles disponibles (max 30)
       parsedFeed.items.slice(0, 30).forEach(item => {
         let image = 'https://via.placeholder.com/400x250/10159d/fff?text=Gaming+News';
         
-        // Extraction intelligente de l'image
         if (item['media:content'] && item['media:content'].$?.url) {
           image = item['media:content'].$.url;
         } else if (item['media:thumbnail'] && item['media:thumbnail'].$?.url) {
@@ -437,7 +659,6 @@ async function fetchRSSNews() {
   return articles;
 }
 
-// Guardian API
 async function fetchGuardianNews() {
   try {
     const response = await axios.get('https://content.guardianapis.com/search', {
@@ -470,7 +691,6 @@ async function fetchGuardianNews() {
   }
 }
 
-// Rafraîchir le cache avec TOUS les articles
 async function refreshNewsCache() {
   console.log('\n═══════════════════════════════════════════════');
   console.log('📥 RÉCUPÉRATION MAXIMALE DES ARTICLES');
@@ -484,10 +704,8 @@ async function refreshNewsCache() {
     fetchGuardianNews()
   ]);
   
-  // Combiner tous les articles
   let allArticles = [...redditNews, ...rssNews, ...guardianNews];
   
-  // Supprimer les doublons basés sur le titre
   const uniqueArticles = [];
   const seenTitles = new Set();
   
@@ -499,10 +717,8 @@ async function refreshNewsCache() {
     }
   });
   
-  // Trier par date (plus récents en premier)
   uniqueArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
   
-  // Mettre à jour le cache
   newsCache.allArticles = uniqueArticles;
   newsCache.timestamp = Date.now();
   newsCache.stats = {
@@ -530,12 +746,10 @@ async function refreshNewsCache() {
   return uniqueArticles;
 }
 
-// Route principale des actualités
 app.get('/api/news', async (req, res) => {
   try {
     const now = Date.now();
     
-    // Rafraîchir si nécessaire
     if (!newsCache.allArticles.length || (now - newsCache.timestamp) > newsCache.duration) {
       console.log('🔄 Cache expiré ou vide, rafraîchissement...');
       await refreshNewsCache();
@@ -544,7 +758,6 @@ app.get('/api/news', async (req, res) => {
       console.log(`✅ ${newsCache.allArticles.length} articles servis depuis le cache (âge: ${age} min)`);
     }
     
-    // Renvoyer tous les articles
     res.json(newsCache.allArticles);
     
   } catch (error) {
@@ -556,7 +769,6 @@ app.get('/api/news', async (req, res) => {
   }
 });
 
-// Route pour forcer le refresh
 app.get('/api/news/refresh', async (req, res) => {
   try {
     await refreshNewsCache();
@@ -574,7 +786,6 @@ app.get('/api/news/refresh', async (req, res) => {
   }
 });
 
-// État détaillé du cache
 app.get('/api/news/status', (req, res) => {
   const now = Date.now();
   const age = now - newsCache.timestamp;
@@ -598,7 +809,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Gestion des erreurs
 app.use((err, req, res, next) => {
   console.error('❌ Erreur serveur:', err);
   res.status(500).json({ 
@@ -614,16 +824,16 @@ app.listen(PORT, async () => {
   console.log(`📡 URL: http://localhost:${PORT}`);
   console.log('═══════════════════════════════════════════════');
   console.log(`🎮 API RAWG: Jeux vidéo`);
+  console.log(`🔥 TRENDING: Métacritique + Rating + Popularité`);
+  console.log(`🥽 VR: Recherche stricte de jeux VR confirmés`);
   console.log(`📰 Sources actualités:`);
   console.log(`   - Reddit: 6 subreddits × ~100 posts`);
   console.log(`   - RSS: 11 sources × ~30 articles`);
   console.log(`   - Guardian: ~50 articles`);
   console.log(`📊 Capacité totale: ~1000 articles`);
   console.log(`💾 Cache: 6 heures`);
-  console.log(`🔄 Affichage: Scroll infini optimisé`);
   console.log('═══════════════════════════════════════════════');
   
-  // Pré-chargement du cache au démarrage
   console.log('\n🔄 Pré-chargement du cache...\n');
   try {
     await refreshNewsCache();
