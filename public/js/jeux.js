@@ -1,372 +1,425 @@
-// jeux.js - Gestion de la page Jeux Vidéo
+// jeux.js - VERSION CORRIGÉE - Gestion timeout et erreurs optimisée
 
 let allGames = [];
 let displayedGames = [];
 let currentPage = 1;
-const GAMES_PER_PAGE = 20;
-let currentFilters = {
+let isLoading = false;
+let totalResults = 0;
+
+// Paramètres de filtrage
+let filters = {
     genre: '',
     platform: '',
     sort: '-rating',
-    pegi: null,
+    year: '',
     search: ''
 };
 
-
-function getPegiFromGame(game) {
-    if (!game.esrb_rating || !game.esrb_rating.name) return null;
-
-    const esrb = game.esrb_rating.name.toLowerCase().trim();
-
-    if (esrb.includes('everyone')) return 3;          // Everyone ou Everyone 10+
-    if (esrb.includes('teen')) return 12;             // Teen
-    if (esrb.includes('mature')) return 18;           // Mature
-    if (esrb.includes('adults only')) return 18;      // AO
-
-    return 3; // valeur par défaut si inconnu
-}
-
-    
-
+const GAMES_PER_PAGE = 20;
+const FETCH_TIMEOUT = 10000; // 10 secondes max
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎮 Page Jeux chargée');
+    testRAWGAPI();
     loadGenres();
     loadGames();
-    loadSearchGames();
-    setupSearchSuggestions();
-
-
+    setupEventListeners();
 });
 
-// Charger les genres depuis l'API
-async function loadGenres() {
+// Test de l'API RAWG au démarrage
+async function testRAWGAPI() {
     try {
-        const response = await fetch('/api/genres');
-        const data = await response.json();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
         
+        const response = await fetch('/api/test-rawg', {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ API RAWG:', data.message || 'OK');
+        } else {
+            console.warn('⚠️ API RAWG: statut', response.status);
+        }
+    } catch (error) {
+        console.error('❌ Test API échoué:', error.message);
+    }
+}
+
+// Configuration des écouteurs
+function setupEventListeners() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+    }
+}
+
+// Charger les genres pour le filtre
+async function loadGenres() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    
+    try {
+        const response = await fetch('/api/genres', {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
         const genreSelect = document.getElementById('genreFilter');
-        if (data.results && genreSelect) {
+        
+        if (genreSelect && data.results) {
             data.results.forEach(genre => {
                 const option = document.createElement('option');
                 option.value = genre.id;
                 option.textContent = genre.name;
                 genreSelect.appendChild(option);
             });
+            console.log(`✅ ${data.results.length} genres chargés`);
         }
     } catch (error) {
-        console.error('❌ Erreur chargement genres:', error);
+        clearTimeout(timeoutId);
+        console.error('❌ Erreur chargement genres:', error.message);
     }
 }
 
-// Charger les jeux
-async function loadGames() {
-    showLoading();
-
-    try {
-        let url = '/api/games/popular';
-        const params = new URLSearchParams();
-
-        params.append('ordering', currentFilters.sort);
-        params.append('page_size', '40');
-
-        // Genre (API)
-        if (currentFilters.genre) {
-            params.append('genres', currentFilters.genre);
-        }
-
-        // Plateforme
-        if (currentFilters.platform) {
-            url = `/api/games/platform/${getPlatformSlug(currentFilters.platform)}`;
-        }
-
-        // Recherche
-        if (currentFilters.search) {
-            url = '/api/games/search';
-            params.append('query', currentFilters.search);
-        }
-
-        const fullUrl = `${url}?${params.toString()}`;
-        console.log('📥 Chargement:', fullUrl);
-
-        const response = await fetch(fullUrl);
-        if (!response.ok) {
-            throw new Error('Erreur lors du chargement des jeux');
-        }
-
-        const data = await response.json();
-
-        if (!data.results || data.results.length === 0) {
-            showNoResults();
-            return;
-        }
-
-        // ====== NORMALISATION ======
-        allGames = data.results.map(game => {
-            return {
-                ...game,
-                pegi: getPegiFromGame(game)
-            };
-        });
-
-        // ====== FILTRAGE FIABLE CÔTÉ JS ======
-        allGames = allGames.filter(game => {
-
-            // 🔹 GENRE (CORRECTION PRINCIPALE)
-            if (currentFilters.genre) {
-                if (!game.genres || !Array.isArray(game.genres)) return false;
-
-                const hasGenre = game.genres.some(
-                    g => String(g.id) === String(currentFilters.genre)
-                );
-
-                if (!hasGenre) return false;
-            }
-
-            // 🔹 PEGI
-            if (currentFilters.pegi !== null) {
-                if (game.pegi !== currentFilters.pegi) return false;
-            }
-
-            return true;
-        });
-
-        // ====== RÉSULTAT FINAL ======
-        if (allGames.length === 0) {
-            showNoResults();
-            return;
-        }
-
+// Charger les jeux avec les filtres actifs
+async function loadGames(append = false) {
+    if (isLoading) {
+        console.log('⚠️ Chargement déjà en cours, ignoré');
+        return;
+    }
+    
+    isLoading = true;
+    
+    if (!append) {
+        showLoading();
         currentPage = 1;
+        displayedGames = [];
+    }
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        console.warn('⏱️ Timeout atteint, annulation de la requête');
+        controller.abort();
+    }, FETCH_TIMEOUT);
+    
+    try {
+        console.log(`📥 Chargement des jeux (page ${currentPage})...`);
+        
+        // Construction de l'URL
+        let endpoint = '/api/games/popular';
+        const params = new URLSearchParams();
+        
+        // Paramètres de base
+        params.append('page_size', GAMES_PER_PAGE);
+        
+        // Si recherche active, utiliser l'endpoint de recherche
+        if (filters.search && filters.search.trim() !== '') {
+            endpoint = '/api/games/search';
+            params.append('query', filters.search.trim());
+            console.log('🔍 Recherche:', filters.search);
+        }
+        
+        // Appliquer les filtres
+        if (filters.genre) params.append('genres', filters.genre);
+        if (filters.platform) params.append('platforms', filters.platform);
+        if (filters.year) {
+            params.append('dates', `${filters.year}-01-01,${filters.year}-12-31`);
+        }
+        
+        const url = `${endpoint}?${params.toString()}`;
+        console.log('📡 URL:', url);
+        
+        const response = await fetch(url, {
+            signal: controller.signal,
+            headers: { 
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Vérifier le statut de la réponse
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Réponse serveur:', response.status, errorText);
+            throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+        }
+        
+        // Parser le JSON
+        let data;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            console.error('❌ Erreur parsing JSON:', parseError);
+            throw new Error('Réponse invalide du serveur');
+        }
+        
+        // Valider la structure des données
+        if (!data || !Array.isArray(data.results)) {
+            console.error('❌ Structure de données invalide:', data);
+            throw new Error('Format de données incorrect');
+        }
+        
+        totalResults = data.count || data.results.length;
+        
+        if (append) {
+            displayedGames = [...displayedGames, ...data.results];
+        } else {
+            displayedGames = data.results;
+        }
+        
+        console.log(`✅ ${data.results.length} jeux chargés (total: ${displayedGames.length})`);
+        
+        // Afficher les jeux
         displayGames();
-        updateResultsCount(allGames.length);
-
+        updateResultsCount();
+        
+        // Gérer le bouton "Charger plus"
+        const loadMoreContainer = document.getElementById('loadMoreContainer');
+        if (loadMoreContainer) {
+            if (displayedGames.length < totalResults && data.results.length === GAMES_PER_PAGE) {
+                loadMoreContainer.style.display = 'flex';
+            } else {
+                loadMoreContainer.style.display = 'none';
+            }
+        }
+        
     } catch (error) {
-        console.error('❌ Erreur:', error);
-        showError(error.message);
+        clearTimeout(timeoutId);
+        console.error('❌ Erreur lors du chargement des jeux:', error);
+        
+        let errorMessage = error.message;
+        if (error.name === 'AbortError') {
+            errorMessage = 'La requête a pris trop de temps. Vérifiez votre connexion ou réessayez.';
+        }
+        
+        showError(errorMessage);
+    } finally {
+        isLoading = false;
     }
 }
-
 
 // Afficher les jeux
 function displayGames() {
     const container = document.getElementById('gamesList');
-    const loadMoreBtn = document.getElementById('loadMoreContainer');
-    
-    if (!container) return;
-    
-    const startIndex = 0;
-    const endIndex = currentPage * GAMES_PER_PAGE;
-    displayedGames = allGames.slice(startIndex, endIndex);
-    
-    container.innerHTML = displayedGames.map(game => createGameCard(game)).join('');
-    
-    // Afficher/masquer le bouton "Charger plus"
-    if (loadMoreBtn) {
-        loadMoreBtn.style.display = endIndex < allGames.length ? 'flex' : 'none';
+    if (!container) {
+        console.error('❌ Container #gamesList introuvable');
+        return;
     }
+    
+    if (displayedGames.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                <div style="font-size: 64px; margin-bottom: 20px;">🎮</div>
+                <h3 style="font-size: 24px; color: var(--cyan); margin-bottom: 10px;">Aucun jeu trouvé</h3>
+                <p style="color: rgba(255,255,255,0.7);">Essayez de modifier vos filtres de recherche</p>
+                <button onclick="resetFilters()" style="
+                    margin-top: 20px;
+                    padding: 12px 24px;
+                    background: linear-gradient(45deg, var(--purple), var(--cyan));
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">Réinitialiser les filtres</button>
+            </div>
+        `;
+        return;
+    }
+    
+    const gamesHTML = displayedGames.map(game => createGameCard(game)).join('');
+    container.innerHTML = gamesHTML;
 }
 
 // Créer une carte de jeu
 function createGameCard(game) {
-    const platforms = game.platforms 
-        ? game.platforms.slice(0, 3).map(p => p.platform.name).join(', ')
-        : 'N/A';
+    const platforms = game.platforms ? 
+        game.platforms.slice(0, 3).map(p => getPlatformIcon(p.platform.name)).join(' ') : '';
     
-    const genres = game.genres
-        ? game.genres.slice(0, 3).map(g => `<span class="genre-tag">${g.name}</span>`).join('')
-        : '';
+    const genres = game.genres ? 
+        game.genres.slice(0, 2).map(g => `<span class="genre-tag">${g.name}</span>`).join('') : '';
     
     return `
-        <div class="news-card" onclick="viewGame(${game.id})" style="cursor: pointer;">
-            <img src="${game.background_image || 'https://via.placeholder.com/400x250/10159d/fff?text=No+Image'}" 
-                 alt="${game.name}" 
-                 class="news-image"
-                 onerror="this.src='https://via.placeholder.com/400x250/10159d/fff?text=No+Image'">
-            <div class="news-content">
-                <h3 class="news-title">${game.name}</h3>
+        <div class="game-card" onclick="viewGame(${game.id})" style="
+            background: linear-gradient(135deg, rgba(145, 78, 255, 0.2), rgba(16, 21, 157, 0.2));
+            border: 2px solid rgba(37, 244, 238, 0.2);
+            border-radius: 20px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        " onmouseover="this.style.transform='translateY(-5px)'; this.style.borderColor='var(--cyan)'; this.style.boxShadow='0 10px 30px rgba(37, 244, 238, 0.3)'" 
+           onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='rgba(37, 244, 238, 0.2)'; this.style.boxShadow='none'">
+            
+            <div style="position: relative; overflow: hidden; height: 200px;">
+                <img src="${game.background_image || 'https://via.placeholder.com/400x200/10159d/fff?text=No+Image'}" 
+                     alt="${game.name}" 
+                     style="width: 100%; height: 100%; object-fit: cover;"
+                     onerror="this.src='https://via.placeholder.com/400x200/10159d/fff?text=No+Image'">
                 
-                <div style="display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap;">
+                ${game.rating ? `
+                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 10px; backdrop-filter: blur(10px);">
+                        <span style="color: var(--yellow); font-weight: 700; font-size: 16px;">
+                            ⭐ ${game.rating}
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div style="padding: 20px;">
+                <h3 style="font-size: 18px; font-weight: 700; color: white; margin-bottom: 10px; line-height: 1.3;">
+                    ${game.name.length > 40 ? game.name.substring(0, 40) + '...' : game.name}
+                </h3>
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
                     ${genres}
                 </div>
                 
-                <p style="color: rgba(255,255,255,0.7); font-size: 13px; margin: 8px 0;">
-                    🎮 ${platforms}
-                </p>
-                
-                ${game.released ? `
-                    <p style="color: var(--cyan); font-size: 12px; margin: 5px 0;">
-                        📅 ${formatDate(game.released)}
-                    </p>
-                ` : ''}
-                
-                ${game.rating ? `
-                    <div class="news-rating" style="margin-top: auto; padding-top: 10px;">
-                        ${getStarRating(game.rating)} <strong>${game.rating}/5</strong>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="color: var(--cyan); font-size: 14px;">
+                        ${platforms || '🎮'}
                     </div>
-                ` : ''}
+                    
+                    ${game.released ? `
+                        <div style="color: rgba(255,255,255,0.7); font-size: 13px;">
+                            📅 ${formatDate(game.released)}
+                        </div>
+                    ` : ''}
+                </div>
             </div>
         </div>
     `;
 }
 
-// Charger plus de jeux
-function loadMoreGames() {
-    currentPage++;
-    displayGames();
-    
-    // Scroll smooth vers les nouveaux jeux
-    const container = document.getElementById('gamesList');
-    if (container) {
-        const lastRow = container.children[displayedGames.length - GAMES_PER_PAGE];
-        if (lastRow) {
-            lastRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    }
+// Icône de plateforme
+function getPlatformIcon(platformName) {
+    const name = platformName.toLowerCase();
+    if (name.includes('pc')) return '💻';
+    if (name.includes('playstation') || name.includes('ps')) return '🎮';
+    if (name.includes('xbox')) return '🎯';
+    if (name.includes('switch')) return '🕹️';
+    if (name.includes('ios') || name.includes('android')) return '📱';
+    if (name.includes('vr')) return '🥽';
+    return '🎮';
 }
 
 // Appliquer les filtres
 function applyFilters() {
-    currentFilters.genre = document.getElementById('genreFilter').value;
-    currentFilters.platform = document.getElementById('platformFilter').value;
-    currentFilters.sort = document.getElementById('sortFilter').value;
-
-    // Récupérer PEGI et convertir en nombre
-    const pegiValue = document.getElementById('pegiFilter').value;
-    currentFilters.pegi = pegiValue ? parseInt(pegiValue) : null;
-
+    filters.genre = document.getElementById('genreFilter')?.value || '';
+    filters.platform = document.getElementById('platformFilter')?.value || '';
+    filters.sort = document.getElementById('sortFilter')?.value || '-rating';
+    filters.year = document.getElementById('yearFilter')?.value || '';
+    
     updateResultsTitle();
-    loadGames(); // Appel à la fonction séparée
+    currentPage = 1;
+    loadGames(false);
+}
+
+// Réinitialiser les filtres
+function resetFilters() {
+    document.getElementById('genreFilter').value = '';
+    document.getElementById('platformFilter').value = '';
+    document.getElementById('sortFilter').value = '-rating';
+    document.getElementById('yearFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    
+    filters = {
+        genre: '',
+        platform: '',
+        sort: '-rating',
+        year: '',
+        search: ''
+    };
+    
+    updateResultsTitle();
+    loadGames(false);
 }
 
 // Recherche
-async function performSearch() {
-    const query = document.getElementById('searchInput').value;
+function performSearch() {
+    const searchInput = document.getElementById('searchInput');
+    if (!searchInput) return;
     
-    if (!query.trim()) {
-        displayedNewsCount = 30;
-        displayNews();
+    filters.search = searchInput.value.trim();
+    
+    console.log('🔍 Recherche:', filters.search);
+    currentPage = 1;
+    updateResultsTitle();
+    loadGames(false);
+}
+
+// Charger plus de jeux
+function loadMoreGames() {
+    if (isLoading) {
+        console.log('⚠️ Chargement déjà en cours');
         return;
     }
-    
-    const filtered = allNews.filter(news => 
-        news.title.toLowerCase().includes(query.toLowerCase()) ||
-        news.description.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    if (filtered.length > 0) {
-        displayedNewsCount = 30;
-        allNews = filtered;
-        displayNews();
-    } else {
-        showLoading('newsList');
-        
-        try {
-            const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
-            if (!response.ok) throw new Error('Erreur recherche');
-            
-            const data = await response.json();
-            
-            if (data.results && data.results.length > 0) {
-                const gamesAsNews = data.results.map(game => ({
-                    source: 'rawg',
-                    title: game.name,
-                    description: `Note: ${game.rating}/5 • Sortie: ${game.released}`,
-                    url: `game-details.html?id=${game.id}`,
-                    image: game.background_image,
-                    publishedAt: game.released,
-                    author: 'RAWG',
-                    category: 'game',
-                    detectedCategory: 'article'
-                }));
-                
-                allNews = gamesAsNews;
-                displayedNewsCount = 30;
-                displayNews();
-            } else {
-                allNews = [];
-                displayNews();
-            }
-        } catch (error) {
-            console.error('❌ Erreur recherche:', error);
-            allNews = [];
-            displayNews();
+    currentPage++;
+    loadGames(true);
+}
+
+// Mettre à jour le compteur de résultats
+function updateResultsCount() {
+    const resultsCount = document.getElementById('resultsCount');
+    if (resultsCount) {
+        if (totalResults > 0) {
+            resultsCount.textContent = `${displayedGames.length} / ${totalResults.toLocaleString()} jeux`;
+        } else {
+            resultsCount.textContent = `${displayedGames.length} jeux`;
         }
     }
 }
 
 // Mettre à jour le titre des résultats
 function updateResultsTitle() {
-    const titleElement = document.getElementById('resultsTitle');
-    if (!titleElement) return;
+    const resultsTitle = document.getElementById('resultsTitle');
+    if (!resultsTitle) return;
     
-    let title = 'Tous les Jeux';
-    
-    if (currentFilters.search) {
-        title = `Résultats pour "${currentFilters.search}"`;
-    } else if (currentFilters.genre) {
+    if (filters.search) {
+        resultsTitle.textContent = `Résultats pour "${filters.search}"`;
+    } else if (filters.genre) {
         const genreSelect = document.getElementById('genreFilter');
-        const selectedOption = genreSelect.options[genreSelect.selectedIndex];
-        title = `Jeux ${selectedOption.text}`;
-    } else if (currentFilters.platform) {
+        const genreName = genreSelect?.options[genreSelect.selectedIndex]?.text || 'Genre';
+        resultsTitle.textContent = `Jeux ${genreName}`;
+    } else if (filters.platform) {
         const platformSelect = document.getElementById('platformFilter');
-        const selectedOption = platformSelect.options[platformSelect.selectedIndex];
-        title = `Jeux ${selectedOption.text}`;
-    } else if (currentFilters.pegi) {
-        title = `Jeux de ${currentFilters.pegi}`;
+        const platformName = platformSelect?.options[platformSelect.selectedIndex]?.text || 'Plateforme';
+        resultsTitle.textContent = `Jeux ${platformName}`;
+    } else if (filters.year) {
+        resultsTitle.textContent = `Jeux de ${filters.year}`;
+    } else {
+        resultsTitle.textContent = 'Tous les Jeux';
     }
-    
-    titleElement.textContent = title;
 }
 
-// Mettre à jour le compteur de résultats
-function updateResultsCount(count) {
-    const countElement = document.getElementById('resultsCount');
-   
-}
-
-// Obtenir le slug de la plateforme
-function getPlatformSlug(platformId) {
-    const platformMap = {
-        '4': 'pc',
-        '18': 'playstation',
-        '1': 'xbox',
-        '7': 'switch',
-        '171': 'vr'
-    };
-    return platformMap[platformId] || 'pc';
-}
-
-// Rediriger vers la page détails
+// Voir les détails d'un jeu
 function viewGame(id) {
     window.location.href = `game-details.html?id=${id}`;
 }
 
-// Générer les étoiles
-function getStarRating(rating) {
-    if (!rating) return '';
-    
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-    
-    let stars = '';
-    for (let i = 0; i < fullStars; i++) stars += '⭐';
-    if (hasHalfStar) stars += '✨';
-    for (let i = 0; i < emptyStars; i++) stars += '☆';
-    
-    return stars;
-}
-
 // Formater la date
 function formatDate(dateString) {
-    if (!dateString) return 'Date inconnue';
-    
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', { 
         year: 'numeric', 
-        month: 'long', 
+        month: 'short', 
         day: 'numeric' 
     });
 }
@@ -376,39 +429,22 @@ function showLoading() {
     const container = document.getElementById('gamesList');
     if (container) {
         container.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--cyan); font-size: 18px;">
-                <div class="loading">⏳ Chargement des jeux...</div>
+            <div style="grid-column: 1 / -1; text-align: center; padding: 80px 20px;">
+                <div style="font-size: 64px; margin-bottom: 20px; animation: spin 2s linear infinite;">🎮</div>
+                <div style="font-size: 24px; color: var(--cyan); font-weight: 600; margin-bottom: 10px;">
+                    Chargement des jeux...
+                </div>
+                <div style="color: rgba(255,255,255,0.6);">
+                    Récupération depuis RAWG API
+                </div>
             </div>
+            <style>
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            </style>
         `;
-    }
-}
-
-// Afficher "Aucun résultat"
-function showNoResults() {
-    const container = document.getElementById('gamesList');
-    if (container) {
-        container.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
-                <p style="font-size: 48px; margin-bottom: 20px;">🎮</p>
-                <p style="font-size: 24px; color: var(--yellow); margin-bottom: 15px;">
-                    Aucun jeu trouvé
-                </p>
-                <p style="font-size: 16px; color: rgba(255,255,255,0.7); margin-bottom: 30px;">
-                    Essayez de modifier vos critères de recherche
-                </p>
-                <button onclick="resetFilters()" 
-                        style="padding: 15px 35px; background: linear-gradient(135deg, var(--purple), var(--blue)); 
-                               color: white; border: 2px solid var(--cyan); border-radius: 25px; 
-                               cursor: pointer; font-weight: 600; font-size: 16px; transition: all 0.3s;">
-                    Réinitialiser les filtres
-                </button>
-            </div>
-        `;
-    }
-    
-    const loadMoreBtn = document.getElementById('loadMoreContainer');
-    if (loadMoreBtn) {
-        loadMoreBtn.style.display = 'none';
     }
 }
 
@@ -418,40 +454,42 @@ function showError(message) {
     if (container) {
         container.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
-                <p style="font-size: 48px; margin-bottom: 20px;">⚠️</p>
-                <p style="font-size: 24px; color: var(--yellow); margin-bottom: 15px;">
-                    Erreur de chargement
-                </p>
-                <p style="font-size: 16px; color: rgba(255,255,255,0.7); margin-bottom: 30px;">
+                <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+                <h3 style="font-size: 24px; color: var(--yellow); margin-bottom: 15px;">Erreur de chargement</h3>
+                <p style="color: rgba(255,255,255,0.8); margin-bottom: 30px; font-size: 16px; max-width: 600px; margin-left: auto; margin-right: auto;">
                     ${message}
                 </p>
-                <button onclick="loadGames()" 
-                        style="padding: 15px 35px; background: linear-gradient(135deg, var(--purple), var(--blue)); 
-                               color: white; border: 2px solid var(--cyan); border-radius: 25px; 
-                               cursor: pointer; font-weight: 600; font-size: 16px; transition: all 0.3s;">
-                    Réessayer
-                </button>
+                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="loadGames()" style="
+                        padding: 15px 30px;
+                        background: linear-gradient(45deg, var(--purple), var(--cyan));
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: transform 0.3s;
+                    " onmouseover="this.style.transform='scale(1.05)'" 
+                       onmouseout="this.style.transform='scale(1)'">
+                        🔄 Réessayer
+                    </button>
+                    <button onclick="resetFilters()" style="
+                        padding: 15px 30px;
+                        background: rgba(255, 255, 255, 0.1);
+                        color: white;
+                        border: 2px solid var(--cyan);
+                        border-radius: 10px;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: transform 0.3s;
+                    " onmouseover="this.style.transform='scale(1.05)'" 
+                       onmouseout="this.style.transform='scale(1)'">
+                        🔄 Réinitialiser
+                    </button>
+                </div>
             </div>
         `;
     }
-}
-
-// Réinitialiser les filtres
-function resetFilters() {
-    document.getElementById('genreFilter').value = '';
-    document.getElementById('platformFilter').value = '';
-    document.getElementById('sortFilter').value = '-rating';
-    document.getElementById('pegiFilter').value = '';
-    document.getElementById('searchInput').value = '';
-    
-    currentFilters = {
-        genre: '',
-        platform: '',
-        sort: '-rating',
-        pegi: null,
-        search: ''
-    };
-    
-    updateResultsTitle();
-    loadGames();
 }

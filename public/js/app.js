@@ -1,6 +1,5 @@
-// App.js - VERSION SCROLL INFINI - Affichage progressif
+// app.js - VERSION FINALE CORRIGÉE
 
-// État de l'application
 let currentTab = 'trending';
 let currentPlatform = 'tout';
 let allGames = {
@@ -8,10 +7,12 @@ let allGames = {
     upcoming: [],
     recent: []
 };
-let allNews = []; // TOUS les articles du serveur
-let displayedNewsCount = 30; // Commence à 30 articles
+let allNews = [];
+let displayedNewsCount = 30;
 let currentNewsFilter = 'tout';
-const NEWS_INCREMENT = 12; // Charger 12 articles de plus à chaque clic
+const NEWS_INCREMENT = 12;
+let isLoadingNews = false;
+let isLoadingGames = false;
 
 // Initialisation
 document.addEventListener('DOMContentLoaded', () => {
@@ -19,19 +20,21 @@ document.addEventListener('DOMContentLoaded', () => {
     testAPI();
     loadFeaturedGames();
     loadGames('trending');
-    loadGames('upcoming');
-    loadGames('recent');
     loadNews();
-    setupEventListeners();   
-    loadSearchGames();
-    setupSearchSuggestions();
-
+    setupEventListeners();
 });
 
 // Tester l'API
 async function testAPI() {
     try {
-        const response = await fetch('/api/test-rawg');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch('/api/test-rawg', {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         const data = await response.json();
         
         if (data.success) {
@@ -39,7 +42,6 @@ async function testAPI() {
             console.log('📊 Jeux disponibles:', data.total_games);
         } else {
             console.error('❌ Échec du test API:', data.error);
-            showError('API RAWG non disponible. Vérifiez votre clé API.');
         }
     } catch (error) {
         console.error('❌ Erreur test API:', error);
@@ -50,33 +52,12 @@ async function testAPI() {
 function setupEventListeners() {
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-    searchInput.addEventListener('input', () => {
-        showSearchSuggestions(searchInput.value);
-    });
-
-     searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') performSearch();
-                
-     });
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
     }
-
-    const newsFilters = document.querySelectorAll('.news-filters .filter-btn');
-    newsFilters.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            newsFilters.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            const filter = e.target.dataset.filter;
-            filterNews(filter);
-        });
-    });
-
-    const navLinks = document.querySelectorAll('.nav-link');
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            navLinks.forEach(l => l.classList.remove('active'));
-            e.target.classList.add('active');
-        });
-    });
 }
 
 // Basculer entre les onglets
@@ -96,40 +77,103 @@ function switchTab(tab) {
     
     if (allGames[tab].length === 0) {
         loadGames(tab);
+    } else {
+        displayGames(allGames[tab], tab);
     }
 }
 
-// Filtrer par plateforme
-function filterByPlatform(platform) {
+// Filtrer par plateforme - VERSION AVEC APPEL API
+async function filterByPlatform(platform) {
     currentPlatform = platform;
     
+    // Mettre à jour les boutons actifs
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
     
+    // "Tout" = afficher tous les jeux déjà chargés
     if (platform === 'tout') {
+        console.log(`📊 Affichage de TOUS les jeux: ${allGames[currentTab].length}`);
         displayGames(allGames[currentTab], currentTab);
-    } else {
-        const filtered = allGames[currentTab].filter(game => {
-            if (!game.platforms) return false;
-            return game.platforms.some(p => {
-                const name = p.platform.name.toLowerCase();
-                return name.includes(platform) || 
-                       (platform === 'pc' && name.includes('pc')) ||
-                       (platform === 'playstation' && (name.includes('playstation') || name.includes('ps'))) ||
-                       (platform === 'xbox' && name.includes('xbox')) ||
-                       (platform === 'switch' && name.includes('switch')) ||
-                       (platform === 'vr' && (name.includes('vr') || name.includes('virtual reality')));
-            });
-        });
-        displayGames(filtered, currentTab);
+        return;
     }
+    
+    console.log(`🔍 Filtrage par plateforme: ${platform.toUpperCase()}`);
+    
+    // Pour VR, PC, PlayStation, Xbox, Switch : faire un appel API dédié
+    if (['vr', 'pc', 'playstation', 'xbox', 'switch'].includes(platform)) {
+        const containerId = `${currentTab}Games`;
+        showLoading(containerId);
+        
+        try {
+            const response = await fetch(`/api/games/platform/${platform}?upcoming=${currentTab === 'upcoming'}`);
+            
+            if (!response.ok) {
+                throw new Error('Erreur API plateforme');
+            }
+            
+            const data = await response.json();
+            
+            if (data.results && data.results.length > 0) {
+                console.log(`✅ ${data.results.length} jeux ${platform.toUpperCase()} récupérés de l'API`);
+                displayGames(data.results, currentTab);
+            } else {
+                document.getElementById(containerId).innerHTML = `
+                    <p style="color: var(--yellow); padding: 40px; text-align: center; width: 100%;">
+                        Aucun jeu ${platform.toUpperCase()} disponible
+                    </p>
+                `;
+            }
+        } catch (error) {
+            console.error(`❌ Erreur chargement ${platform}:`, error);
+            document.getElementById(containerId).innerHTML = `
+                <p style="color: var(--yellow); padding: 40px; text-align: center;">
+                    Erreur de chargement
+                </p>
+            `;
+        }
+        return;
+    }
+    
+    // Sinon, filtrage côté client (fallback)
+    console.log(`📊 Filtrage côté client pour: ${platform}`);
+    const platformMatches = {
+        'pc': ['pc', 'windows', 'linux', 'macos', 'mac os'],
+        'playstation': ['playstation', 'ps5', 'ps4', 'ps3', 'ps2', 'ps vita', 'psp', 'ps '],
+        'xbox': ['xbox', 'xbox one', 'xbox 360', 'xbox series'],
+        'switch': ['nintendo switch', 'switch'],
+        'vr': ['playstation vr', 'psvr', 'ps vr', 'oculus', 'meta quest', 'htc vive', 'valve index', 'vr', 'virtual reality', 'playstation vr2']
+    };
+    
+    const keywords = platformMatches[platform] || [platform];
+    
+    const filtered = allGames[currentTab].filter(game => {
+        if (!game.platforms || !Array.isArray(game.platforms) || game.platforms.length === 0) {
+            return false;
+        }
+        
+        const gamePlatforms = game.platforms.map(p => p.platform.name.toLowerCase());
+        
+        return gamePlatforms.some(platformName => {
+            return keywords.some(keyword => platformName.includes(keyword));
+        });
+    });
+    
+    console.log(`✅ ${filtered.length} jeux trouvés pour ${platform.toUpperCase()}`);
+    displayGames(filtered, currentTab);
 }
 
 // Charger les jeux en vedette
 async function loadFeaturedGames() {
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
         console.log('📥 Chargement des jeux en vedette');
-        const response = await fetch('/api/games/popular');
+        const response = await fetch('/api/games/trending', {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             throw new Error('Erreur lors du chargement des jeux en vedette');
@@ -142,11 +186,14 @@ async function loadFeaturedGames() {
         }
     } catch (error) {
         console.error('❌ Erreur featured games:', error);
-        document.getElementById('featuredArticles').innerHTML = `
-            <p style="grid-column: 1/-1; text-align: center; color: var(--yellow);">
-                Erreur de chargement des jeux en vedette
-            </p>
-        `;
+        const container = document.getElementById('featuredArticles');
+        if (container) {
+            container.innerHTML = `
+                <p style="grid-column: 1/-1; text-align: center; color: var(--yellow); padding: 40px;">
+                    Erreur de chargement des jeux en vedette
+                </p>
+            `;
+        }
     }
 }
 
@@ -183,21 +230,34 @@ function displayFeaturedGames(games) {
 
 // Charger les jeux
 async function loadGames(type) {
+    if (isLoadingGames) {
+        console.log('⚠️ Chargement de jeux déjà en cours');
+        return;
+    }
+    
     const endpoints = {
-        trending: '/api/games/popular',
+        trending: '/api/games/trending',
         upcoming: '/api/games/upcoming',
         recent: '/api/games/new-releases'
     };
     
     const containerId = `${type}Games`;
     showLoading(containerId);
+    isLoadingGames = true;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
         console.log('📥 Chargement des jeux:', type);
-        const response = await fetch(endpoints[type]);
+        const response = await fetch(endpoints[type], {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.details || errorData.error || 'Erreur API');
         }
         
@@ -207,7 +267,6 @@ async function loadGames(type) {
             allGames[type] = data.results;
             console.log(`✅ ${type} chargés:`, data.results.length);
             displayGames(data.results, type);
-
         } else {
             console.warn(`⚠️ Aucun jeu trouvé pour ${type}`);
             document.getElementById(containerId).innerHTML = `
@@ -217,12 +276,15 @@ async function loadGames(type) {
             `;
         }
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error('❌ Erreur chargement:', error);
         document.getElementById(containerId).innerHTML = `
             <p style="color: var(--yellow); padding: 40px; text-align: center;">
-                Erreur: ${error.message}
+                ${error.name === 'AbortError' ? 'Timeout - Le serveur ne répond pas' : `Erreur: ${error.message}`}
             </p>
         `;
+    } finally {
+        isLoadingGames = false;
     }
 }
 
@@ -232,7 +294,7 @@ function displayGames(games, type) {
     if (!container) return;
     
     if (!games || games.length === 0) {
-        container.innerHTML = '<p style="color: var(--yellow); padding: 40px; text-align: center;">Aucun jeu trouvé</p>';
+        container.innerHTML = '<p style="color: var(--yellow); padding: 40px; text-align: center; width: 100%;">Aucun jeu trouvé</p>';
         return;
     }
 
@@ -258,31 +320,26 @@ function displayGames(games, type) {
     `).join('');
 }
 
-// ==================== CATÉGORIES ====================
-
+// Détection de catégorie
 function detectArticleCategory(article) {
     const title = article.title.toLowerCase();
     const description = (article.description || '').toLowerCase();
     const content = title + ' ' + description;
     
-    const guideKeywords = ['guide', 'how to', 'tutorial', 'walkthrough', 'tips', 'tricks', 'beginner', 
-                          'advanced', 'strategy', 'build', 'best', 'top 10', 'explained', 'conseil'];
+    const categories = {
+        'e-sport': ['esport', 'tournament', 'championship', 'competitive', 'pro', 'team', 'league'],
+        'patch': ['patch', 'update', 'hotfix', 'fix', 'bug', 'changelog'],
+        'teste': ['review', 'test', 'critique', 'impression', 'hands-on'],
+        'guide': ['guide', 'how to', 'tutorial', 'walkthrough', 'tips', 'tricks']
+    };
     
-    const reviewKeywords = ['review', 'test', 'critique', 'impression', 'hands-on', 'preview', 
-                           'tested', 'verdict', 'rating', 'score', 'analysis', 'évaluation'];
+    for (const [category, keywords] of Object.entries(categories)) {
+        if (keywords.some(keyword => content.includes(keyword))) {
+            return category;
+        }
+    }
     
-    const patchKeywords = ['patch', 'update', 'hotfix', 'fix', 'bug', 'changelog', 'notes', 
-                          'version', 'release', 'mise à jour', 'correctif', 'balance'];
-    
-    const esportKeywords = ['esport', 'tournament', 'championship', 'competitive', 'pro', 'team', 
-                           'league', 'finals', 'winner', 'prize', 'competition', 'match', 'compétition'];
-    
-    if (esportKeywords.some(keyword => content.includes(keyword))) return 'e-sport';
-    if (patchKeywords.some(keyword => content.includes(keyword))) return 'patch';
-    if (reviewKeywords.some(keyword => content.includes(keyword))) return 'teste';
-    if (guideKeywords.some(keyword => content.includes(keyword))) return 'guide';
-    if (article.source === 'reddit') return 'discussion';
-    return 'article';
+    return article.source === 'reddit' ? 'discussion' : 'article';
 }
 
 function getCategoryBadgeStyled(category) {
@@ -309,8 +366,6 @@ function getCategoryBadgeStyled(category) {
             font-size: 12px;
             font-weight: 700;
             border: 1.5px solid ${badge.color};
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         ">
             <span style="font-size: 14px;">${badge.icon}</span>
             ${badge.label}
@@ -318,56 +373,82 @@ function getCategoryBadgeStyled(category) {
     `;
 }
 
-// ==================== ACTUALITÉS - SCROLL INFINI ====================
-
-// Charger TOUS les articles du serveur
+// Charger TOUS les articles
 async function loadNews() {
+    if (isLoadingNews) {
+        console.log('⚠️ Chargement de news déjà en cours');
+        return;
+    }
+    
     showLoading('newsList');
+    isLoadingNews = true;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     try {
-        console.log('📰 Chargement de TOUS les articles depuis le serveur...');
-        const response = await fetch('/api/news');
+        console.log('📰 Chargement de TOUS les articles...');
+        const response = await fetch('/api/news', {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-            throw new Error('Erreur lors du chargement des actualités');
+            throw new Error(`Erreur HTTP ${response.status}`);
         }
         
         const data = await response.json();
         
-        // Ajouter la catégorie détectée
+        if (!Array.isArray(data)) {
+            throw new Error('Format de données invalide');
+        }
+        
         allNews = data.map(article => ({
             ...article,
             detectedCategory: detectArticleCategory(article)
         }));
         
-        console.log(`✅ ${allNews.length} articles chargés au total`);
+        console.log(`✅ ${allNews.length} articles chargés`);
         
-        // Afficher les 30 premiers
         displayedNewsCount = 30;
         displayNews();
         
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error('❌ Erreur actualités:', error);
-        document.getElementById('newsList').innerHTML = `
-            <p style="text-align: center; padding: 40px; color: var(--yellow);">
-                Erreur: ${error.message}
-                <br><br>
-                <button onclick="loadNews()" style="padding: 12px 24px; background: var(--purple); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600;">
-                    Réessayer
-                </button>
-            </p>
-        `;
+        const container = document.getElementById('newsList');
+        if (container) {
+            container.innerHTML = `
+                <p style="text-align: center; padding: 40px; color: var(--yellow); grid-column: 1 / -1;">
+                    ${error.name === 'AbortError' ? 'Timeout - Le serveur ne répond pas' : `Erreur: ${error.message}`}
+                    <br><br>
+                    <button onclick="loadNews()" style="padding: 12px 24px; background: var(--purple); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: 600;">
+                        Réessayer
+                    </button>
+                </p>
+            `;
+        }
+    } finally {
+        isLoadingNews = false;
     }
 }
 
 // Filtrer par catégorie
 function filterNews(filter) {
     currentNewsFilter = filter;
-    displayedNewsCount = 30; // Reset à 30
+    displayedNewsCount = 30;
+    
+    document.querySelectorAll('.news-filters .filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
     displayNews();
 }
 
-// Charger plus d'articles (scroll infini)
+// Charger plus d'articles
 function loadMoreNews() {
     displayedNewsCount += NEWS_INCREMENT;
     console.log(`📄 Affichage de ${displayedNewsCount} articles`);
@@ -380,50 +461,52 @@ function displayNews() {
     if (!container) return;
     
     if (!allNews || allNews.length === 0) {
-        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%;">Aucune actualité disponible</p>';
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%; grid-column: 1 / -1;">Aucune actualité disponible</p>';
         return;
     }
     
-    // Filtrer par catégorie
     let newsToShow = allNews;
     if (currentNewsFilter !== 'tout') {
         newsToShow = allNews.filter(article => article.detectedCategory === currentNewsFilter);
     }
     
     if (newsToShow.length === 0) {
-        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%;">Aucun article dans cette catégorie</p>';
+        container.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--yellow); width: 100%; grid-column: 1 / -1;">Aucun article dans cette catégorie</p>';
         return;
     }
     
-    // Afficher jusqu'à displayedNewsCount articles
     const articlesToDisplay = newsToShow.slice(0, displayedNewsCount);
     const hasMore = newsToShow.length > displayedNewsCount;
     
-    container.innerHTML = articlesToDisplay.map(article => {
+    const articlesHTML = articlesToDisplay.map(article => {
         const sourceIcon = getSourceIcon(article.source);
         const categoryBadge = getCategoryBadgeStyled(article.detectedCategory);
         
-        const shortDescription = article.description 
-            ? article.description.substring(0, 100) + (article.description.length > 100 ? '...' : '')
-            : '';
+        let description = article.description || '';
+        description = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+        const shortDescription = description.length > 100 
+            ? description.substring(0, 100) + '...' 
+            : description;
+        
+        let title = article.title || 'Sans titre';
+        title = title.replace(/\s+/g, ' ').trim();
+        const shortTitle = title.length > 80 
+            ? title.substring(0, 80) + '...' 
+            : title;
         
         return `
             <div class="news-card" onclick="window.open('${article.url}', '_blank')">
                 <img src="${article.image}" 
-                     alt="${article.title}" 
+                     alt="${shortTitle}" 
                      class="news-image"
                      onerror="this.src='https://via.placeholder.com/800x250/10159d/fff?text=Gaming+News'">
                 <div class="news-content">
-                    <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;">
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
                         <span class="source-badge">${sourceIcon} ${article.author}</span>
                         ${categoryBadge}
                     </div>
-                    <h3 class="news-title">${article.title}</h3>
-                    ${shortDescription ? `
-                        <p style="color: rgba(255,255,255,0.7); font-size: 13px; line-height: 1.5; margin-top: 8px;">
-                            ${shortDescription}
-                        </p>
-                    ` : ''}
+                    <h3 class="news-title">${shortTitle}</h3>
+                    ${shortDescription ? `<p style="color: rgba(255,255,255,0.7); font-size: 13px; line-height: 1.5; margin-top: 8px;">${shortDescription}</p>` : ''}
                     <p style="margin-top: auto; padding-top: 10px; color: var(--cyan); font-size: 12px;">
                         📅 ${formatDate(article.publishedAt)}
                     </p>
@@ -432,22 +515,23 @@ function displayNews() {
         `;
     }).join('');
     
-    // Bouton "Charger plus" - Simple et élégant
+    container.innerHTML = articlesHTML;
+    
     if (hasMore) {
-        container.innerHTML += `
-            <div style="width: 100%; display: flex; justify-content: center; padding: 20px; grid-column: 1 / -1;">
-                <button onclick="loadMoreNews()" class="load-more-btn">
-                    <span style="font-size: 20px; margin-right: 10px;">📰</span>
-                    Charger plus d'articles
-                </button>
-            </div>
+        const loadMoreDiv = document.createElement('div');
+        loadMoreDiv.className = 'load-more-container';
+        loadMoreDiv.innerHTML = `
+            <button onclick="loadMoreNews()" class="load-more-btn">
+                <span style="font-size: 20px;">📰</span>
+                Charger plus (${newsToShow.length - displayedNewsCount} restants)
+            </button>
         `;
+        container.appendChild(loadMoreDiv);
     } else if (newsToShow.length > 30) {
-        container.innerHTML += `
-            <div style="width: 100%; text-align: center; padding: 20px; color: var(--cyan); grid-column: 1 / -1;">
-                <p style="font-size: 16px;">✅ Vous avez tout vu !</p>
-            </div>
-        `;
+        const endDiv = document.createElement('div');
+        endDiv.className = 'load-more-container';
+        endDiv.innerHTML = '<p style="color: var(--cyan); font-size: 16px; font-weight: 600;">✅ Tous les articles affichés</p>';
+        container.appendChild(endDiv);
     }
 }
 
@@ -456,11 +540,9 @@ function getSourceIcon(source) {
     return icons[source] || '📰';
 }
 
-// Recherche
 async function performSearch() {
-    const query = document.getElementById('searchInput').value;
-    
-    if (!query.trim()) {
+    const query = document.getElementById('searchInput')?.value;
+    if (!query || !query.trim()) {
         displayedNewsCount = 30;
         displayNews();
         return;
@@ -468,47 +550,13 @@ async function performSearch() {
     
     const filtered = allNews.filter(news => 
         news.title.toLowerCase().includes(query.toLowerCase()) ||
-        news.description.toLowerCase().includes(query.toLowerCase())
+        (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
     );
     
     if (filtered.length > 0) {
         displayedNewsCount = 30;
         allNews = filtered;
         displayNews();
-    } else {
-        showLoading('newsList');
-        
-        try {
-            const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
-            if (!response.ok) throw new Error('Erreur recherche');
-            
-            const data = await response.json();
-            
-            if (data.results && data.results.length > 0) {
-                const gamesAsNews = data.results.map(game => ({
-                    source: 'rawg',
-                    title: game.name,
-                    description: `Note: ${game.rating}/5 • Sortie: ${game.released}`,
-                    url: `game-details.html?id=${game.id}`,
-                    image: game.background_image,
-                    publishedAt: game.released,
-                    author: 'RAWG',
-                    category: 'game',
-                    detectedCategory: 'article'
-                }));
-                
-                allNews = gamesAsNews;
-                displayedNewsCount = 30;
-                displayNews();
-            } else {
-                allNews = [];
-                displayNews();
-            }
-        } catch (error) {
-            console.error('❌ Erreur recherche:', error);
-            allNews = [];
-            displayNews();
-        }
     }
 }
 
@@ -518,7 +566,6 @@ function viewGame(id) {
 
 function getStarRating(rating) {
     if (!rating) return '';
-    
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
@@ -527,7 +574,6 @@ function getStarRating(rating) {
     for (let i = 0; i < fullStars; i++) stars += '⭐';
     if (hasHalfStar) stars += '✨';
     for (let i = 0; i < emptyStars; i++) stars += '☆';
-    
     return stars;
 }
 
@@ -544,14 +590,10 @@ function showLoading(containerId) {
     const container = document.getElementById(containerId);
     if (container) {
         container.innerHTML = `
-            <div style="text-align: center; padding: 60px 20px; color: var(--cyan); font-size: 18px;">
-                <div class="loading">⏳ Chargement en cours...</div>
+            <div class="loading" style="grid-column: 1 / -1; text-align: center; padding: 60px;">
+                <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                <div style="font-size: 20px; color: var(--cyan);">Chargement...</div>
             </div>
         `;
     }
-function getAllGamesForSearch() {
-    setupSearchSuggestions(getAllGamesForSearch);
-
-}
-
 }
