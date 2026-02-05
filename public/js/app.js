@@ -204,10 +204,10 @@ function displayFeaturedGames(games) {
     
     container.innerHTML = games.map((game, index) => `
         <div class="featured-card ${index === 0 ? 'large' : ''}" onclick="viewGame(${game.id})">
-            <img src="${game.background_image || 'https://via.placeholder.com/400x250/10159d/fff?text=No+Image'}" 
+            <img src="${game.background_image || '/img/placeholder.svg'}" 
                  alt="${game.name}" 
                  class="featured-image"
-                 onerror="this.src='https://via.placeholder.com/400x250/10159d/fff?text=No+Image'">
+                 onerror="this.src='/img/placeholder.svg'">
             <div class="featured-content">
                 <h3 class="featured-title">${game.name}</h3>
                 <div class="genre-tags">
@@ -300,10 +300,10 @@ function displayGames(games, type) {
 
     container.innerHTML = games.slice(0, 20).map(game => `
         <div class="game-card" onclick="viewGame(${game.id})">
-            <img src="${game.background_image || 'https://via.placeholder.com/200x180'}" 
+            <img src="${game.background_image || '/img/placeholder.svg'}" 
                  alt="${game.name}" 
                  class="game-card-image"
-                 onerror="this.src='https://via.placeholder.com/200x180'">
+                 onerror="this.src='/img/placeholder.svg'">
             <div class="game-card-title">${game.name.length > 30 ? game.name.substring(0, 30) + '...' : game.name}</div>
             ${game.released ? `
                 <div class="game-card-date">
@@ -499,7 +499,7 @@ function displayNews() {
                 <img src="${article.image}" 
                      alt="${shortTitle}" 
                      class="news-image"
-                     onerror="this.src='https://via.placeholder.com/800x250/10159d/fff?text=Gaming+News'">
+                     onerror="this.src='/img/placeholder.svg'">
                 <div class="news-content">
                     <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
                         <span class="source-badge">${sourceIcon} ${article.author}</span>
@@ -543,20 +543,261 @@ function getSourceIcon(source) {
 async function performSearch() {
     const query = document.getElementById('searchInput')?.value;
     if (!query || !query.trim()) {
-        displayedNewsCount = 30;
-        displayNews();
         return;
     }
     
-    const filtered = allNews.filter(news => 
+    console.log('🔍 Recherche globale:', query);
+    
+    // Collect all games from all categories
+    let searchGames = [];
+    searchGames = searchGames.concat(allGames.trending || []);
+    searchGames = searchGames.concat(allGames.upcoming || []);
+    searchGames = searchGames.concat(allGames.recent || []);
+    
+    // Remove duplicates by ID
+    const uniqueGamesMap = new Map();
+    searchGames.forEach(game => {
+        if (game.id && !uniqueGamesMap.has(game.id)) {
+            uniqueGamesMap.set(game.id, game);
+        }
+    });
+    searchGames = Array.from(uniqueGamesMap.values());
+    
+    // Filter games from local cache
+    const filteredGames = searchGames.filter(game => 
+        game.name.toLowerCase().includes(query.toLowerCase()) ||
+        (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
+    );
+    
+    // Filter news
+    const filteredNews = allNews.filter(news => 
         news.title.toLowerCase().includes(query.toLowerCase()) ||
         (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
     );
     
-    if (filtered.length > 0) {
-        displayedNewsCount = 30;
-        allNews = filtered;
-        displayNews();
+    // If games found locally or have enough results, show immediately
+    if (filteredGames.length > 0 || filteredNews.length > 0) {
+        showSearchResults(filteredGames, filteredNews, query);
+        // Also fetch from API to get more results
+        if (filteredGames.length < 10) {
+            await searchGamesFromAPI(query, filteredNews);
+        }
+    } else {
+        // If no results found locally, try API search
+        showSearchResults([], filteredNews, query, true);
+        await searchGamesFromAPI(query, filteredNews);
+    }
+}
+
+async function searchGamesFromAPI(query, existingNews = []) {
+    try {
+        console.log('🌐 Recherche API RAWG pour:', query);
+        const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
+        if (!response.ok) throw new Error('API search failed');
+        
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+            console.log(`✅ ${data.results.length} jeux trouvés via API`);
+            const modal = document.getElementById('searchModal');
+            if (modal && modal.style.display === 'flex') {
+                // Merge with existing news from modal
+                showSearchResults(data.results, existingNews || [], query);
+            }
+        } else {
+            console.log('❌ Aucun jeu trouvé via API pour:', query);
+        }
+    } catch (error) {
+        console.error('❌ Erreur recherche API:', error);
+    }
+}
+
+function showSearchResults(games, news, query, isLoading = false) {
+    // Create or get modal
+    let modal = document.getElementById('searchModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'searchModal';
+        modal.className = 'search-modal';
+        document.body.appendChild(modal);
+    }
+    
+    const totalResults = games.length + news.length;
+    
+    if (totalResults === 0 && !isLoading) {
+        modal.innerHTML = `
+            <div class="search-modal-content">
+                <div class="search-modal-header">
+                    <h2>Résultats de recherche pour "<strong>${query}</strong>"</h2>
+                    <button class="search-modal-close" onclick="closeSearchResults()">✕</button>
+                </div>
+                <div class="search-modal-body">
+                    <p style="text-align: center; color: var(--yellow); padding: 40px;">
+                        Aucun résultat trouvé pour "<strong>${query}</strong>"
+                    </p>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        return;
+    }
+    
+    if (isLoading) {
+        modal.innerHTML = `
+            <div class="search-modal-content">
+                <div class="search-modal-header">
+                    <h2>Recherche de "<strong>${query}</strong>"...</h2>
+                    <button class="search-modal-close" onclick="closeSearchResults()">✕</button>
+                </div>
+                <div class="search-modal-body">
+                    <p style="text-align: center; color: var(--cyan); padding: 40px; font-size: 18px;">
+                        ⏳ Recherche en cours...
+                    </p>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        return;
+    }
+    
+    // Build games HTML
+    let gamesHTML = '';
+    if (games.length > 0) {
+        gamesHTML = `
+            <div class="search-results-games">
+                ${games.map(game => createSearchGameCard(game)).join('')}
+            </div>
+        `;
+    } else {
+        gamesHTML = '<p style="text-align: center; color: var(--yellow); padding: 40px;">Aucun jeu trouvé</p>';
+    }
+    
+    // Build news HTML - sort by date descending
+    let newsHTML = '';
+    if (news.length > 0) {
+        const sortedNews = [...news].sort((a, b) => {
+            const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+            const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+            return dateB - dateA;
+        });
+        
+        newsHTML = `
+            <div class="search-results-news">
+                ${sortedNews.slice(0, 10).map(article => createSearchNewsCard(article)).join('')}
+            </div>
+        `;
+    } else {
+        newsHTML = '<p style="text-align: center; color: var(--yellow); padding: 40px;">Aucune actualité trouvée</p>';
+    }
+    
+    // Build tabs
+    const gamesTab = games.length > 0 ? 'active' : '';
+    const newsTab = news.length > 0 && games.length === 0 ? 'active' : '';
+    
+    modal.innerHTML = `
+        <div class="search-modal-content">
+            <div class="search-modal-header">
+                <h2>Résultats de recherche: "<strong>${query}</strong>" (${totalResults} résultats)</h2>
+                <button class="search-modal-close" onclick="closeSearchResults()">✕</button>
+            </div>
+            <div class="search-tabs">
+                <button class="search-tab-btn ${gamesTab}" onclick="switchSearchTab('games')">
+                    🎮 Jeux (${games.length})
+                </button>
+                <button class="search-tab-btn ${newsTab}" onclick="switchSearchTab('news')">
+                    📰 Actualités (${news.length})
+                </button>
+            </div>
+            <div class="search-modal-body">
+                <div id="games-tab-content" class="search-tab-content ${gamesTab}">
+                    ${gamesHTML}
+                </div>
+                <div id="news-tab-content" class="search-tab-content ${newsTab}">
+                    ${newsHTML}
+                </div>
+            </div>
+        </div>
+    `;
+    modal.style.display = 'flex';
+    
+    // Close on background click
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            closeSearchResults();
+        }
+    };
+}
+
+function switchSearchTab(tab) {
+    // Hide all tabs
+    document.querySelectorAll('.search-tab-content').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // Remove active from all buttons
+    document.querySelectorAll('.search-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    const selectedContent = document.getElementById(tab + '-tab-content');
+    if (selectedContent) {
+        selectedContent.classList.add('active');
+    }
+    
+    // Mark button as active
+    event.target.classList.add('active');
+}
+
+function createSearchGameCard(game) {
+    const genres = game.genres ? game.genres.slice(0, 2).map(g => g.name).join(', ') : 'N/A';
+    return `
+        <div class="search-result-item search-game-item" onclick="viewGame(${game.id})">
+            <div class="search-result-image">
+                <img src="${game.background_image || '/img/placeholder.svg'}" 
+                     alt="${game.name}"
+                     onerror="this.src='/img/placeholder.svg'">
+                ${game.rating ? `<div class="search-result-rating">⭐ ${game.rating}</div>` : ''}
+            </div>
+            <div class="search-result-info">
+                <h4 class="search-result-title">${game.name}</h4>
+                <p class="search-result-meta">${genres}</p>
+                ${game.released ? `<p class="search-result-date">📅 ${formatDate(game.released)}</p>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function createSearchNewsCard(article) {
+    const newsLink = article.link || article.url || '#';
+    const publishDate = article.pubDate ? new Date(article.pubDate).toLocaleDateString('fr-FR') : '';
+    const clickHandler = newsLink && newsLink !== '#' ? `window.open('${newsLink.replace(/'/g, "\\'")}', '_blank')` : 'return false';
+    
+    return `
+        <div class="search-result-item search-news-item" onclick="${clickHandler}" style="cursor: ${newsLink && newsLink !== '#' ? 'pointer' : 'default'}">
+            <div class="search-result-image">
+                 <img src="${article.image || '/img/placeholder.svg'}" 
+                     alt="${article.title}"
+                     onerror="this.src='/img/placeholder.svg'">
+            </div>
+            <div class="search-result-info">
+                <h4 class="search-result-title">${article.title}</h4>
+                <p class="search-result-meta">${article.source || 'Article'}</p>
+                ${publishDate ? `<p class="search-result-date">📅 ${publishDate}</p>` : ''}
+                <p class="search-result-desc">${article.description?.substring(0, 100) || ''}...</p>
+            </div>
+        </div>
+    `;
+}
+
+function closeSearchResults() {
+    const modal = document.getElementById('searchModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    // Clear search input
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = '';
     }
 }
 

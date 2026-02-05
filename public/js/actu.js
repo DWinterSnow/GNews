@@ -1,7 +1,13 @@
 // actualites.js - VERSION CORRIGÉE avec timeout et limitation texte
 
-let allNews = [];
-let filteredNews = [];
+// Ensure globals are available on window so other pages can access them
+if (typeof window.allNews === 'undefined') {
+    window.allNews = [];
+}
+if (typeof window.filteredNews === 'undefined') {
+    window.filteredNews = [];
+}
+
 let displayedCount = 30;
 const INCREMENT = 12;
 let currentCategory = 'tout';
@@ -10,12 +16,45 @@ let currentSort = 'recent';
 let searchQuery = '';
 let isLoading = false;
 
+// Ensure a window-scoped `allGames` exists so search can read it
+if (typeof window.allGames === 'undefined' || !window.allGames) {
+    window.allGames = {
+        trending: [],
+        upcoming: [],
+        recent: []
+    };
+}
+
 // Initialisation
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('📰 Page Actualités chargée');
-    loadAllNews();
+    await Promise.all([loadAllNews(), loadGamesForSearch()]);
     setupEventListeners();
 });
+
+// Load games for search functionality
+async function loadGamesForSearch() {
+    try {
+        const endpoints = {
+            trending: '/api/games/trending?page_size=50',
+            upcoming: '/api/games/upcoming?page_size=50',
+            recent: '/api/games/new-releases?page_size=50'
+        };
+        
+        for (const [type, url] of Object.entries(endpoints)) {
+            const response = await fetch(url);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.results) {
+                    window.allGames[type] = data.results;
+                    console.log(`✅ Loaded ${data.results.length} ${type} games`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error loading games:', error);
+    }
+}
 
 // Configuration des écouteurs
 function setupEventListeners() {
@@ -74,14 +113,14 @@ async function loadAllNews() {
             throw new Error('Format de données invalide (attendu: array)');
         }
         
-        allNews = data.map(article => ({
+        window.allNews = data.map(article => ({
             ...article,
             detectedCategory: detectArticleCategory(article)
         }));
         
-        console.log(`✅ ${allNews.length} articles chargés avec succès`);
+        console.log(`✅ ${window.allNews.length} articles chargés avec succès`);
         
-        if (allNews.length === 0) {
+        if (window.allNews.length === 0) {
             showEmptyState('Aucun article disponible. Le serveur n\'a retourné aucune donnée.');
             return;
         }
@@ -126,8 +165,8 @@ async function refreshNews() {
         }
         
         // Recharger les données
-        allNews = [];
-        filteredNews = [];
+        window.allNews = [];
+        window.filteredNews = [];
         await loadAllNews();
         
     } catch (error) {
@@ -197,7 +236,7 @@ function sortNews(sortType) {
 
 // Appliquer tous les filtres
 function applyFilters() {
-    let result = [...allNews];
+    let result = [...(window.allNews || [])];
     
     if (searchQuery) {
         result = result.filter(article =>
@@ -224,7 +263,7 @@ function applyFilters() {
         });
     }
     
-    filteredNews = result;
+    window.filteredNews = result;
     displayedCount = 30;
     displayNews();
     updateStats();
@@ -232,9 +271,83 @@ function applyFilters() {
 
 // Recherche
 function performSearch() {
-    searchQuery = document.getElementById('searchInput')?.value.trim() || '';
-    displayedCount = 30;
-    applyFilters();
+    const query = document.getElementById('searchInput')?.value;
+    if (!query || !query.trim()) {
+        return;
+    }
+    
+    console.log('🔍 Recherche globale:', query);
+    
+    // Use window objects to access global data
+    let searchGames = [];
+    if (window.allGames) {
+        searchGames = searchGames.concat(window.allGames.trending || []);
+        searchGames = searchGames.concat(window.allGames.upcoming || []);
+        searchGames = searchGames.concat(window.allGames.recent || []);
+    }
+    
+    // Remove duplicates by ID
+    const uniqueGamesMap = new Map();
+    searchGames.forEach(game => {
+        if (game.id && !uniqueGamesMap.has(game.id)) {
+            uniqueGamesMap.set(game.id, game);
+        }
+    });
+    searchGames = Array.from(uniqueGamesMap.values());
+    
+    // Filter games
+    const filteredGames = searchGames.filter(game => 
+        game.name.toLowerCase().includes(query.toLowerCase()) ||
+        (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
+    );
+    
+    // Filter news
+    const allNewsData = window.allNews || [];
+    const filteredNews = allNewsData.filter(news => 
+        news.title.toLowerCase().includes(query.toLowerCase()) ||
+        (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
+    );
+    
+    // Debug: log counts so we can see why games may be missing
+    console.log('🔎 window.allGames counts:', {
+        trending: (window.allGames?.trending || []).length,
+        upcoming: (window.allGames?.upcoming || []).length,
+        recent: (window.allGames?.recent || []).length,
+        filteredGames: filteredGames.length,
+        filteredNews: filteredNews.length
+    });
+
+    // Show search results popup (games priority)
+    if (window.showSearchResults) {
+        // If we have no local games, show loading and try API fallback (like app.js)
+        if (filteredGames.length === 0 && typeof window.searchGamesFromAPI === 'function') {
+            window.showSearchResults([], filteredNews, query, true);
+            // call the app's API search which will update the modal when results arrive
+            window.searchGamesFromAPI(query, filteredNews).catch(err => console.error(err));
+        } else if (filteredGames.length === 0 && typeof window.searchGamesFromAPI !== 'function') {
+            // fallback: perform the API call here and show results
+            window.showSearchResults([], filteredNews, query, true);
+            fetch(`/api/games/search?query=${encodeURIComponent(query)}`)
+                .then(r => r.ok ? r.json() : Promise.reject(r))
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        window.showSearchResults(data.results, filteredNews, query);
+                    } else {
+                        window.showSearchResults([], filteredNews, query);
+                    }
+                })
+                .catch(err => {
+                    console.error('API search fallback failed', err);
+                    window.showSearchResults([], filteredNews, query);
+                });
+        } else {
+            window.showSearchResults(filteredGames, filteredNews, query);
+            // also fetch more results if games are few
+            if (filteredGames.length < 10 && typeof window.searchGamesFromAPI === 'function') {
+                window.searchGamesFromAPI(query, filteredNews).catch(err => console.error(err));
+            }
+        }
+    }
 }
 
 // Charger plus d'articles
@@ -251,13 +364,14 @@ function displayNews() {
         return;
     }
     
-    if (filteredNews.length === 0) {
+    const filtered = window.filteredNews || [];
+    if (filtered.length === 0) {
         showEmptyState('Aucune actualité trouvée avec ces filtres');
         return;
     }
     
-    const newsToShow = filteredNews.slice(0, displayedCount);
-    const hasMore = filteredNews.length > displayedCount;
+    const newsToShow = filtered.slice(0, displayedCount);
+    const hasMore = filtered.length > displayedCount;
     
     // Générer le HTML de toutes les cartes
     const newsHTML = newsToShow.map(article => createNewsCard(article)).join('');
@@ -272,16 +386,16 @@ function displayNews() {
         loadMoreDiv.innerHTML = `
             <button onclick="loadMoreNews()" class="load-more-btn">
                 <span style="font-size: 24px;">📰</span>
-                Charger plus d'articles (${filteredNews.length - displayedCount} restants)
+                Charger plus d'articles (${filtered.length - displayedCount} restants)
             </button>
         `;
         container.appendChild(loadMoreDiv);
-    } else if (filteredNews.length > 30) {
+    } else if (filtered.length > 30) {
         const endDiv = document.createElement('div');
         endDiv.className = 'load-more-container';
         endDiv.innerHTML = `
             <p style="color: var(--cyan); font-size: 18px; font-weight: 600;">
-                ✅ Tous les articles affichés (${filteredNews.length} au total)
+                ✅ Tous les articles affichés (${filtered.length} au total)
             </p>
         `;
         container.appendChild(endDiv);
@@ -289,7 +403,7 @@ function displayNews() {
     
     updateStats();
     
-    console.log(`✅ Affichage de ${newsToShow.length} articles sur ${filteredNews.length}`);
+    console.log(`✅ Affichage de ${newsToShow.length} articles sur ${filtered.length}`);
 }
 
 // Créer une carte d'actualité
@@ -319,10 +433,10 @@ function createNewsCard(article) {
     
     return `
         <div class="news-card" onclick="window.open('${safeUrl}', '_blank')">
-            <img src="${article.image}" 
-                 alt="${safeTitle}" 
-                 class="news-image"
-                 onerror="this.src='https://via.placeholder.com/800x250/10159d/fff?text=Gaming+News'">
+              <img src="${article.image || '/img/placeholder.svg'}" 
+                  alt="${safeTitle}" 
+                  class="news-image"
+                  onerror="this.src='/img/placeholder.svg'">
             <div class="news-content">
                 <div class="news-meta">
                     <span class="source-badge">${sourceIcon} ${article.author}</span>
@@ -379,11 +493,11 @@ function updateStats() {
     const displayedEl = document.getElementById('displayedArticles');
     
     if (totalEl) {
-        animateNumber(totalEl, filteredNews.length);
+        animateNumber(totalEl, (window.filteredNews || []).length);
     }
     
     if (displayedEl) {
-        const displayed = Math.min(displayedCount, filteredNews.length);
+        const displayed = Math.min(displayedCount, (window.filteredNews || []).length);
         animateNumber(displayedEl, displayed);
     }
 }

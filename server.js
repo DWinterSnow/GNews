@@ -155,7 +155,7 @@ app.get('/api/games/trending', async (req, res) => {
     
     res.json({
       count: games.length,
-      results: games.slice(0, 20)
+      results: games.slice(0, 50)
     });
     
   } catch (error) {
@@ -184,7 +184,7 @@ app.get('/api/games/popular', async (req, res) => {
     const filteredGames = filterAdultContent(response.data.results);
     res.json({
       ...response.data,
-      results: filteredGames.slice(0, 20)
+      results: filteredGames.slice(0, 50)
     });
   } catch (error) {
     res.status(error.response?.status || 500).json({ 
@@ -217,7 +217,7 @@ app.get('/api/games/new-releases', async (req, res) => {
     const filteredGames = filterAdultContent(response.data.results);
     res.json({
       ...response.data,
-      results: filteredGames.slice(0, 20)
+      results: filteredGames.slice(0, 50)
     });
   } catch (error) {
     res.status(error.response?.status || 500).json({ 
@@ -259,7 +259,7 @@ app.get('/api/games/upcoming', async (req, res) => {
     
     res.json({
       ...response.data,
-      results: filteredGames.slice(0, 20)
+      results: filteredGames.slice(0, 50)
     });
   } catch (error) {
     res.status(error.response?.status || 500).json({ 
@@ -290,7 +290,7 @@ app.get('/api/games/search', async (req, res) => {
     const filteredGames = filterAdultContent(response.data.results);
     res.json({
       ...response.data,
-      results: filteredGames.slice(0, 20)
+      results: filteredGames.slice(0, 50)
     });
   } catch (error) {
     res.status(error.response?.status || 500).json({ 
@@ -421,7 +421,7 @@ app.get('/api/games/vr-games', async (req, res) => {
     
     res.json({
       count: filteredGames.length,
-      results: filteredGames.slice(0, 20)
+      results: filteredGames.slice(0, 50)
     });
     
   } catch (error) {
@@ -510,7 +510,7 @@ app.get('/api/games/platform/:platform', async (req, res) => {
     
     res.json({
       ...response.data,
-      results: filteredGames.slice(0, 20)
+      results: filteredGames.slice(0, 50)
     });
   } catch (error) {
     console.error(`❌ Erreur plateforme ${req.params.platform}:`, error.message);
@@ -622,7 +622,7 @@ async function fetchRSSNews() {
       let addedCount = 0;
       
       parsedFeed.items.slice(0, 30).forEach(item => {
-        let image = 'https://via.placeholder.com/400x250/10159d/fff?text=Gaming+News';
+        let image = '/img/placeholder.svg';
         
         if (item['media:content'] && item['media:content'].$?.url) {
           image = item['media:content'].$.url;
@@ -677,7 +677,7 @@ async function fetchGuardianNews() {
       title: article.webTitle,
       description: article.fields?.trailText || '',
       url: article.webUrl,
-      image: article.fields?.thumbnail || 'https://via.placeholder.com/400x250/10159d/fff?text=Gaming+News',
+      image: article.fields?.thumbnail || '/img/placeholder.svg',
       publishedAt: article.webPublicationDate,
       author: 'The Guardian',
       category: 'article'

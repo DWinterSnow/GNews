@@ -1,6 +1,19 @@
 // jeux.js - VERSION CORRIGÉE - Gestion timeout et erreurs optimisée
 
-let allGames = [];
+// Use global variables from app.js if available, otherwise declare locally
+if (typeof allGames === 'undefined') {
+    window.allGames = {
+        trending: [],
+        upcoming: [],
+        recent: []
+    };
+}
+
+// Initialize global allNews if not already defined
+if (typeof allNews === 'undefined') {
+    window.allNews = [];
+}
+
 let displayedGames = [];
 let currentPage = 1;
 let isLoading = false;
@@ -19,13 +32,29 @@ const GAMES_PER_PAGE = 20;
 const FETCH_TIMEOUT = 10000; // 10 secondes max
 
 // Initialisation
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎮 Page Jeux chargée');
     testRAWGAPI();
     loadGenres();
-    loadGames();
+    await Promise.all([loadGames(), loadNewsForSearch()]);
     setupEventListeners();
 });
+
+// Load news for search functionality
+async function loadNewsForSearch() {
+    try {
+        const response = await fetch('/api/news');
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                window.allNews = data;
+                console.log(`✅ Loaded ${data.length} news articles`);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading news:', error);
+    }
+}
 
 // Test de l'API RAWG au démarrage
 async function testRAWGAPI() {
@@ -269,10 +298,10 @@ function createGameCard(game) {
            onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='rgba(37, 244, 238, 0.2)'; this.style.boxShadow='none'">
             
             <div style="position: relative; overflow: hidden; height: 200px;">
-                <img src="${game.background_image || 'https://via.placeholder.com/400x200/10159d/fff?text=No+Image'}" 
+                 <img src="${game.background_image || '/img/placeholder.svg'}" 
                      alt="${game.name}" 
                      style="width: 100%; height: 100%; object-fit: cover;"
-                     onerror="this.src='https://via.placeholder.com/400x200/10159d/fff?text=No+Image'">
+                     onerror="this.src='/img/placeholder.svg'">
                 
                 ${game.rating ? `
                     <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 10px; backdrop-filter: blur(10px);">
@@ -353,16 +382,77 @@ function resetFilters() {
 }
 
 // Recherche
-function performSearch() {
-    const searchInput = document.getElementById('searchInput');
-    if (!searchInput) return;
-    
-    filters.search = searchInput.value.trim();
-    
-    console.log('🔍 Recherche:', filters.search);
-    currentPage = 1;
-    updateResultsTitle();
-    loadGames(false);
+async function performSearch() {
+    const query = document.getElementById('searchInput')?.value;
+    if (!query || !query.trim()) return;
+
+    console.log('🔍 Recherche globale:', query);
+
+    // Collect all games from all sources
+    let searchGames = [];
+    if (window.allGames) {
+        searchGames = searchGames.concat(window.allGames.trending || []);
+        searchGames = searchGames.concat(window.allGames.upcoming || []);
+        searchGames = searchGames.concat(window.allGames.recent || []);
+    } else if (window.displayedGames) {
+        searchGames = window.displayedGames;
+    }
+
+    // Deduplicate
+    const uniqueGamesMap = new Map();
+    searchGames.forEach(game => {
+        if (game && game.id && !uniqueGamesMap.has(game.id)) uniqueGamesMap.set(game.id, game);
+    });
+    searchGames = Array.from(uniqueGamesMap.values());
+
+    // Filter games locally
+    const filteredGames = searchGames.filter(game => 
+        (game.name && game.name.toLowerCase().includes(query.toLowerCase())) ||
+        (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
+    );
+
+    // Filter news
+    const filteredNews = (window.allNews || []).filter(news => 
+        (news.title && news.title.toLowerCase().includes(query.toLowerCase())) ||
+        (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
+    );
+
+    console.log('🔎 searchGames:', searchGames.length, 'filteredGames:', filteredGames.length, 'availableNews:', (window.allNews || []).length, 'filteredNews:', filteredNews.length);
+
+    // If no local games available, fallback to API search
+    if ((!searchGames || searchGames.length === 0) || filteredGames.length === 0) {
+        if (window.showSearchResults) window.showSearchResults([], filteredNews, query, true);
+
+        try {
+            // Prefer canonical app-level API helper if present
+                    if (window.searchGamesFromAPI) {
+                        // The app-level helper shows results itself; call it with the current news
+                        await window.searchGamesFromAPI(query, filteredNews);
+                        return;
+                    }
+
+            // Otherwise call the server search endpoint directly
+            const resp = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                const apiGames = data && data.results ? data.results : (Array.isArray(data) ? data : []);
+                console.log('🌐 API fallback fetched', apiGames.length, 'games');
+                if (window.showSearchResults) window.showSearchResults(apiGames, filteredNews, query, false);
+                return;
+            } else {
+                console.warn('🌐 API fallback failed, status', resp.status);
+                if (window.showSearchResults) window.showSearchResults([], filteredNews, query, false);
+                return;
+            }
+        } catch (err) {
+            console.error('❌ API fallback error:', err);
+            if (window.showSearchResults) window.showSearchResults([], filteredNews, query, false);
+            return;
+        }
+    }
+
+    // Show local filtered results
+    if (window.showSearchResults) window.showSearchResults(filteredGames, filteredNews, query, false);
 }
 
 // Charger plus de jeux

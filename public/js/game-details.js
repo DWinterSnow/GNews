@@ -1,5 +1,18 @@
 // game-details.js - VERSION AVEC PERSISTANCE DES COMMENTAIRES
 
+// Initialize global allGames and allNews if not already defined
+if (typeof allGames === 'undefined') {
+    window.allGames = {
+        trending: [],
+        upcoming: [],
+        recent: []
+    };
+}
+
+if (typeof allNews === 'undefined') {
+    window.allNews = [];
+}
+
 let currentGame = null;
 let allMedia = [];
 let currentMediaIndex = 0;
@@ -96,7 +109,7 @@ let gameComments = [];
 let userVotes = {};
 
 // Au chargement de la page
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎮 Page de détails chargée');
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -109,9 +122,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     console.log('🎯 Chargement du jeu:', gameId);
+    await loadNewsForSearch();
     loadGameDetails(gameId);
     setupEventListeners();
 });
+
+// Load news for search functionality
+async function loadNewsForSearch() {
+    try {
+        const response = await fetch('/api/news');
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                window.allNews = data;
+                console.log(`✅ Loaded ${data.length} news articles`);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading news:', error);
+    }
+}
 
 // Configuration des ecouteurs d'evenements
 function setupEventListeners() {
@@ -151,11 +181,46 @@ function setupEventListeners() {
 
 // Fonction de recherche
 function performSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const query = searchInput.value.trim();
+    const query = document.getElementById('searchInput')?.value;
+    if (!query || !query.trim()) {
+        return;
+    }
     
-    if (query) {
-        window.location.href = `index.html?search=${encodeURIComponent(query)}`;
+    console.log('🔍 Recherche globale:', query);
+    
+    
+    // Collect all games from all sources
+    let searchGames = [];
+    if (window.allGames) {
+        searchGames = searchGames.concat(window.allGames.trending || []);
+        searchGames = searchGames.concat(window.allGames.upcoming || []);
+        searchGames = searchGames.concat(window.allGames.recent || []);
+    }
+    
+    // Remove duplicates by ID
+    const uniqueGamesMap = new Map();
+    searchGames.forEach(game => {
+        if (game.id && !uniqueGamesMap.has(game.id)) {
+            uniqueGamesMap.set(game.id, game);
+        }
+    });
+    searchGames = Array.from(uniqueGamesMap.values());
+    
+    // Filter games
+    const filteredGames = searchGames.filter(game => 
+        game.name.toLowerCase().includes(query.toLowerCase()) ||
+        (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
+    );
+    
+    // Filter news
+    const filteredNews = (window.allNews || []).filter(news => 
+        news.title.toLowerCase().includes(query.toLowerCase()) ||
+        (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
+    );
+    
+    // Show search results popup (games priority)
+    if (window.showSearchResults) {
+        window.showSearchResults(filteredGames, filteredNews, query);
     }
 }
 
@@ -240,7 +305,7 @@ async function loadGameScreenshots(gameId) {
         console.error('⚠️ Erreur chargement captures:', error);
         allMedia = [{
             type: 'image',
-            url: currentGame.background_image || 'https://via.placeholder.com/800x450/10159d/fff?text=No+Image',
+            url: currentGame.background_image || '/img/placeholder.svg',
             isMain: true
         }];
         displayGallery();
@@ -261,9 +326,9 @@ function displayGameDetails(game) {
     
     const headerImage = document.getElementById('headerImage');
     if (headerImage) {
-        headerImage.src = game.background_image || 'https://via.placeholder.com/400x150/10159d/fff?text=No+Image';
+        headerImage.src = game.background_image || '/img/placeholder.svg';
         headerImage.onerror = () => {
-            headerImage.src = 'https://via.placeholder.com/400x150/10159d/fff?text=No+Image';
+            headerImage.src = '/img/placeholder.svg';
         };
     }
     
