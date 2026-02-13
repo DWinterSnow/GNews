@@ -1,9 +1,15 @@
 // Server.js - Backend pour GNews - Jeux vidéo et actualités
 
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
 const Parser = require('rss-parser');
+const session = require('express-session');
+
+// Import routes
+const userRoutes = require('./src/routes/user.routes');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -36,6 +42,22 @@ const newsCache = {
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your_secret_key_change_this',
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// ==================== USER & FAVORITES & REVIEWS ROUTES (AUTHENTICATION) ====================
+app.use('/api/users', userRoutes);
 
 // ==================== ROUTES JEUX ====================
 

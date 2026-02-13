@@ -1,5 +1,29 @@
 // jeux.js - VERSION CORRIGÉE - Gestion timeout et erreurs optimisée
 
+// ============================================
+// AUTH UI MANAGEMENT (Show/Hide buttons based on login state)
+// ============================================
+
+function updateAuthUI() {
+  const authButtons = document.getElementById('authButtons');
+  const userIcons = document.getElementById('userIcons');
+  
+  if (!authButtons || !userIcons) return; // Elements don't exist on all pages
+  
+  // Check if user is logged in by checking sessionStorage
+  const userSession = sessionStorage.getItem('user');
+  
+  if (userSession) {
+    // User is logged in - show user icons, hide auth buttons
+    authButtons.classList.add('hidden');
+    userIcons.classList.remove('hidden');
+  } else {
+    // User is not logged in - show auth buttons, hide user icons
+    authButtons.classList.remove('hidden');
+    userIcons.classList.add('hidden');
+  }
+}
+
 // Use global variables from app.js if available, otherwise declare locally
 if (typeof allGames === 'undefined') {
     window.allGames = {
@@ -35,6 +59,7 @@ const FETCH_TIMEOUT = 10000; // 10 secondes max
 // Initialisation
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎮 Page Jeux chargée');
+    updateAuthUI();
     testRAWGAPI();
     loadGenres();
     await Promise.all([loadGames(), loadNewsForSearch()]);
@@ -357,11 +382,12 @@ function displayGames(append = false) {
 
 // Créer une carte de jeu
 function createGameCard(game) {
-    const platforms = game.platforms ? 
-        game.platforms.slice(0, 3).map(p => getPlatformIcon(p.platform.name)).join(' ') : '';
+    // Get platform names (not just icons)
+    const platformNames = game.platforms ? 
+        game.platforms.slice(0, 3).map(p => p.platform.name).filter(name => name) : [];
     
-    const genres = game.genres ? 
-        game.genres.slice(0, 2).map(g => `<span class="game-card-large-genre-tag">${g.name}</span>`).join('') : '';
+    const platformBadges = platformNames.length > 0 ? 
+        platformNames.map(name => `<span class="platform-badge">${name}</span>`).join('') : '';
     
     return `
         <div class="game-card-large" onclick="viewGame(${game.id})">
@@ -370,29 +396,21 @@ function createGameCard(game) {
                  class="game-card-large-image"
                  onerror="this.src='/img/placeholder.svg'">
             
-            <div class="game-card-large-title">
-                ${game.name.length > 40 ? game.name.substring(0, 40) + '...' : game.name}
-            </div>
-            
-            ${game.rating ? `
-                <div class="game-card-large-rating">
-                    <span>⭐</span>
-                    <span class="rating-value">${game.rating}</span>
+            <div style="padding: 20px; z-index: 3; position: relative;">
+                <div class="game-card-large-title">
+                    ${game.name.length > 50 ? game.name.substring(0, 50) + '...' : game.name}
                 </div>
-            ` : ''}
-            
-            ${game.released ? `
-                <div class="game-card-large-date">
-                    📅 ${formatDate(game.released)}
+                
+                <div class="game-card-large-platforms" style="margin-bottom: 12px;">
+                    ${platformBadges}
                 </div>
-            ` : ''}
-            
-            <div class="game-card-large-genres">
-                ${genres}
-            </div>
-            
-            <div class="game-card-large-platforms">
-                ${platforms || '🎮'}
+                
+                ${game.rating ? `
+                    <div class="game-card-large-rating">
+                        <span>⭐</span>
+                        <span class="rating-value">${game.rating.toFixed(2)}/5</span>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;

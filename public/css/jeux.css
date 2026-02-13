@@ -284,105 +284,114 @@ body {
 
 /* ==================== LARGE GAME CARDS (POUR PAGE JEUX) ==================== */
 .game-card-large {
-    background: linear-gradient(135deg, rgba(145, 78, 255, 0.3), rgba(16, 21, 157, 0.3));
-    border-radius: 18px;
-    padding: 15px;
+    position: relative;
+    border-radius: 15px;
     width: 100%;
     max-width: 100%;
-    min-height: 380px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
+    min-height: 350px;
     cursor: pointer;
     transition: all 0.3s ease;
-    border: 2px solid rgba(37, 244, 238, 0.2);
-    text-align: center;
-    backdrop-filter: blur(10px);
+    border: 2px solid rgba(37, 244, 238, 0.4);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background-color: #1a1a2e;
 }
 
 .game-card-large:hover {
-    background: linear-gradient(135deg, var(--purple), var(--blue));
-    transform: translateY(-12px) scale(1.05);
+    transform: translateY(-8px);
     border-color: var(--cyan);
     box-shadow: 0 15px 40px rgba(37, 244, 238, 0.4);
 }
 
 .game-card-large-image {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: 180px;
+    height: 100%;
     object-fit: cover;
-    border-radius: 12px;
-    margin-bottom: 12px;
+    z-index: 1;
+}
+
+/* Overlay gradient at bottom */
+.game-card-large::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 60%;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.6), transparent);
+    z-index: 2;
 }
 
 .game-card-large-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--white);
     line-height: 1.3;
-    margin-bottom: 10px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    margin-bottom: 8px;
+    z-index: 3;
+    position: relative;
 }
 
 .game-card-large-rating {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 5px;
+    gap: 8px;
     margin-bottom: 10px;
     font-size: 16px;
     color: var(--yellow);
+    z-index: 3;
+    position: relative;
 }
 
 .game-card-large-rating .rating-value {
     font-size: 14px;
     font-weight: 700;
     color: var(--white);
-    background: linear-gradient(135deg, var(--purple), var(--blue));
-    padding: 3px 8px;
-    border-radius: 8px;
-    border: 1px solid var(--cyan);
 }
 
 .game-card-large-date {
-    font-size: 12px;
-    color: var(--cyan);
-    margin-bottom: 8px;
-    font-weight: 600;
-    background: rgba(37, 244, 238, 0.1);
-    padding: 5px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(37, 244, 238, 0.3);
+    display: none;
 }
 
 .game-card-large-genres {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: auto;
+    display: none;
 }
 
 .game-card-large-genre-tag {
     background: linear-gradient(135deg, var(--purple), var(--blue));
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 12px;
     border: 1px solid var(--cyan);
     color: var(--white);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .game-card-large-platforms {
-    color: var(--cyan);
-    font-size: 14px;
+    color: var(--white);
+    font-size: 13px;
     font-weight: 600;
+    z-index: 3;
+    position: relative;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.platform-badge {
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    border: 1px solid var(--cyan);
+    color: var(--white);
+    font-weight: 600;
+    display: inline-block;
 }
 
 /* ==================== GAME CARD (UTILISÉ POUR LA PAGE JEUX) ==================== */

@@ -1,18 +1,5 @@
 // game-details.js - VERSION AVEC PERSISTANCE DES COMMENTAIRES
 
-// Initialize global allGames and allNews if not already defined
-if (typeof allGames === 'undefined') {
-    window.allGames = {
-        trending: [],
-        upcoming: [],
-        recent: []
-    };
-}
-
-if (typeof allNews === 'undefined') {
-    window.allNews = [];
-}
-
 let currentGame = null;
 let allMedia = [];
 let currentMediaIndex = 0;
@@ -109,7 +96,7 @@ let gameComments = [];
 let userVotes = {};
 
 // Au chargement de la page
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     console.log('🎮 Page de détails chargée');
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -122,26 +109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     console.log('🎯 Chargement du jeu:', gameId);
-    await loadNewsForSearch();
     loadGameDetails(gameId);
     setupEventListeners();
 });
-
-// Load news for search functionality
-async function loadNewsForSearch() {
-    try {
-        const response = await fetch('/api/news');
-        if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data)) {
-                window.allNews = data;
-                console.log(`✅ Loaded ${data.length} news articles`);
-            }
-        }
-    } catch (error) {
-        console.error('Error loading news:', error);
-    }
-}
 
 // Configuration des ecouteurs d'evenements
 function setupEventListeners() {
@@ -180,18 +150,13 @@ function setupEventListeners() {
 }
 
 // Fonction de recherche
-async function performSearch() {
+function performSearch() {
     const query = document.getElementById('searchInput')?.value;
     if (!query || !query.trim()) {
         return;
     }
     
     console.log('🔍 Recherche globale:', query);
-    
-    // Show loading state
-    if (window.showSearchResults) {
-        window.showSearchResults([], [], query, true);
-    }
     
     // Collect all games from all sources
     let searchGames = [];
@@ -210,7 +175,7 @@ async function performSearch() {
     });
     searchGames = Array.from(uniqueGamesMap.values());
     
-    // Filter games locally
+    // Filter games
     const filteredGames = searchGames.filter(game => 
         game.name.toLowerCase().includes(query.toLowerCase()) ||
         (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
@@ -221,29 +186,6 @@ async function performSearch() {
         news.title.toLowerCase().includes(query.toLowerCase()) ||
         (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
     );
-    
-    console.log('📊 Local search - Games:', filteredGames.length, 'News:', filteredNews.length);
-    
-    // If no local games found, try API search
-    if (filteredGames.length === 0) {
-        try {
-            console.log('🌐 Initiating API search for games...');
-            const resp = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
-            if (resp.ok) {
-                const data = await resp.json();
-                const apiGames = data && data.results ? data.results : (Array.isArray(data) ? data : []);
-                console.log('🌐 API search found', apiGames.length, 'games');
-                
-                // Show results with API games and filtered news
-                if (window.showSearchResults) {
-                    window.showSearchResults(apiGames, filteredNews, query);
-                }
-                return;
-            }
-        } catch (err) {
-            console.error('❌ API search error:', err);
-        }
-    }
     
     // Show search results popup (games priority)
     if (window.showSearchResults) {
@@ -332,7 +274,7 @@ async function loadGameScreenshots(gameId) {
         console.error('⚠️ Erreur chargement captures:', error);
         allMedia = [{
             type: 'image',
-            url: currentGame.background_image || '/img/placeholder.svg',
+            url: currentGame.background_image || 'https://via.placeholder.com/800x450/10159d/fff?text=No+Image',
             isMain: true
         }];
         displayGallery();
@@ -353,9 +295,9 @@ function displayGameDetails(game) {
     
     const headerImage = document.getElementById('headerImage');
     if (headerImage) {
-        headerImage.src = game.background_image || '/img/placeholder.svg';
+        headerImage.src = game.background_image || 'https://via.placeholder.com/400x150/10159d/fff?text=No+Image';
         headerImage.onerror = () => {
-            headerImage.src = '/img/placeholder.svg';
+            headerImage.src = 'https://via.placeholder.com/400x150/10159d/fff?text=No+Image';
         };
     }
     

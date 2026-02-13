@@ -1,5 +1,29 @@
 // actualites.js - VERSION CORRIGÉE avec timeout et limitation texte
 
+// ============================================
+// AUTH UI MANAGEMENT (Show/Hide buttons based on login state)
+// ============================================
+
+function updateAuthUI() {
+  const authButtons = document.getElementById('authButtons');
+  const userIcons = document.getElementById('userIcons');
+  
+  if (!authButtons || !userIcons) return; // Elements don't exist on all pages
+  
+  // Check if user is logged in by checking sessionStorage
+  const userSession = sessionStorage.getItem('user');
+  
+  if (userSession) {
+    // User is logged in - show user icons, hide auth buttons
+    authButtons.classList.add('hidden');
+    userIcons.classList.remove('hidden');
+  } else {
+    // User is not logged in - show auth buttons, hide user icons
+    authButtons.classList.remove('hidden');
+    userIcons.classList.add('hidden');
+  }
+}
+
 // Ensure globals are available on window so other pages can access them
 if (typeof window.allNews === 'undefined') {
     window.allNews = [];
@@ -28,6 +52,7 @@ if (typeof window.allGames === 'undefined' || !window.allGames) {
 // Initialisation
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('📰 Page Actualités chargée');
+    updateAuthUI();
     await Promise.all([loadAllNews(), loadGamesForSearch()]);
     setupEventListeners();
 });

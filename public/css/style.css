@@ -179,6 +179,58 @@ body {
     background: var(--purple);
 }
 
+/* Auth Buttons Styling */
+.auth-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-login, .btn-signup {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+    text-transform: capitalize;
+}
+
+.btn-login {
+    background: var(--purple);
+    color: var(--white);
+}
+
+.btn-login:hover {
+    background: #7c3aed;
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+}
+
+.btn-signup {
+    background: var(--cyan);
+    color: var(--dark-bg);
+}
+
+.btn-signup:hover {
+    background: #00d9d3;
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(0, 244, 238, 0.5);
+}
+
+/* User Icons Container */
+.user-icons {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
 /* ==================== LOADING ==================== */
 .loading {
     display: flex;

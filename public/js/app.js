@@ -1,5 +1,29 @@
 // app.js - VERSION FINALE CORRIGÉE
 
+// ============================================
+// AUTH UI MANAGEMENT (Show/Hide buttons based on login state)
+// ============================================
+
+function updateAuthUI() {
+  const authButtons = document.getElementById('authButtons');
+  const userIcons = document.getElementById('userIcons');
+  
+  if (!authButtons || !userIcons) return; // Elements don't exist on all pages
+  
+  // Check if user is logged in by checking sessionStorage
+  const userSession = sessionStorage.getItem('user');
+  
+  if (userSession) {
+    // User is logged in - show user icons, hide auth buttons
+    authButtons.classList.add('hidden');
+    userIcons.classList.remove('hidden');
+  } else {
+    // User is not logged in - show auth buttons, hide user icons
+    authButtons.classList.remove('hidden');
+    userIcons.classList.add('hidden');
+  }
+}
+
 let currentTab = 'trending';
 let currentPlatform = 'tout';
 let allGames = {
@@ -17,6 +41,7 @@ let isLoadingGames = false;
 // Initialisation
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🎮 Application GNews démarrée');
+    updateAuthUI();
     testAPI();
     loadFeaturedGames();
     loadGames('trending');
