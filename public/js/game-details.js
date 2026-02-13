@@ -180,7 +180,7 @@ function setupEventListeners() {
 }
 
 // Fonction de recherche
-function performSearch() {
+async function performSearch() {
     const query = document.getElementById('searchInput')?.value;
     if (!query || !query.trim()) {
         return;
@@ -188,6 +188,10 @@ function performSearch() {
     
     console.log('🔍 Recherche globale:', query);
     
+    // Show loading state
+    if (window.showSearchResults) {
+        window.showSearchResults([], [], query, true);
+    }
     
     // Collect all games from all sources
     let searchGames = [];
@@ -206,7 +210,7 @@ function performSearch() {
     });
     searchGames = Array.from(uniqueGamesMap.values());
     
-    // Filter games
+    // Filter games locally
     const filteredGames = searchGames.filter(game => 
         game.name.toLowerCase().includes(query.toLowerCase()) ||
         (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
@@ -217,6 +221,29 @@ function performSearch() {
         news.title.toLowerCase().includes(query.toLowerCase()) ||
         (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
     );
+    
+    console.log('📊 Local search - Games:', filteredGames.length, 'News:', filteredNews.length);
+    
+    // If no local games found, try API search
+    if (filteredGames.length === 0) {
+        try {
+            console.log('🌐 Initiating API search for games...');
+            const resp = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                const apiGames = data && data.results ? data.results : (Array.isArray(data) ? data : []);
+                console.log('🌐 API search found', apiGames.length, 'games');
+                
+                // Show results with API games and filtered news
+                if (window.showSearchResults) {
+                    window.showSearchResults(apiGames, filteredNews, query);
+                }
+                return;
+            }
+        } catch (err) {
+            console.error('❌ API search error:', err);
+        }
+    }
     
     // Show search results popup (games priority)
     if (window.showSearchResults) {

@@ -1,4 +1,4 @@
-// Server.js - VERSION CORRIGÉE TRENDING & VR
+// Server.js - Backend pour GNews - Jeux vidéo et actualités
 
 const express = require('express');
 const path = require('path');
@@ -169,24 +169,223 @@ app.get('/api/games/trending', async (req, res) => {
 
 app.get('/api/games/popular', async (req, res) => {
   try {
-    const response = await axios.get(`${RAWG_BASE_URL}/games`, {
-      params: {
-        key: RAWG_API_KEY,
-        page_size: 40,
-        ordering: '-rating',
-        dates: '2023-01-01,2025-12-31',
-        exclude_tags: '80',
-        exclude_additions: true
-      },
-      timeout: 10000
-    });
+    const pageSize = parseInt(req.query.page_size) || 20;
+    const genres = req.query.genres || '';
+    const platforms = req.query.platforms || '';
+    let sort = req.query.sort !== undefined ? req.query.sort : ''; // Don't default to -rating
+    const pegiFilter = req.query.pegi || '';
     
-    const filteredGames = filterAdultContent(response.data.results);
+    console.log(`🔍 Sort parameter received: '${sort}'`);
+    
+    // Determine the ordering for RAWG API based on sort parameter
+    let ordering;
+    const isAllReviews = sort === '';
+    const isBestRatedFilter = sort === '-rating';
+    const isLowestRatedFilter = sort === 'rating';
+    const isMixedFilter = sort === 'mixed';
+    const isNoReviewedFilter = sort === 'no-reviewed';
+    
+    // For filters that need aggressive filtering, fetch more games upfront
+    let fetchMultiplier = 1;
+    if (isMixedFilter || isNoReviewedFilter || isLowestRatedFilter || isBestRatedFilter) {
+      fetchMultiplier = 10; // Fetch 10x more games (1000 instead of 100)
+    }
+    
+    if (isAllReviews) {
+      // For all reviews, no special filtering - return diverse games
+      ordering = '-added'; // Most recently added
+    } else if (isBestRatedFilter) {
+      ordering = '-rating'; // Highest rated first
+    } else if (isLowestRatedFilter) {
+      ordering = 'rating'; // Lowest rated first
+    } else if (isMixedFilter) {
+      ordering = '-rating'; // Get variety of rated games
+    } else if (isNoReviewedFilter) {
+      ordering = '-added'; // Most recently added (unreviewed games)
+    } else {
+      ordering = '-added'; // Default fallback
+    }
+    
+    // Build the params object
+    const params = {
+      key: RAWG_API_KEY,
+      page_size: pageSize * fetchMultiplier,
+      ordering: ordering,
+      dates: '2015-01-01,2025-12-31',
+      exclude_tags: '80',
+      exclude_additions: true,
+      timeout: 10000
+    };
+    
+    // Apply filters if provided
+    if (genres) {
+      params.genres = genres;
+      console.log(`🎮 Genre filter applied: ${genres}`);
+    }
+    if (platforms) {
+      params.platforms = platforms;
+      console.log(`🖥️ Platform filter applied: ${platforms}`);
+    }
+    
+    // Try multiple pages to ensure we have enough results
+    let games = [];
+    let pagesToTry = [1, 2, 3, 4, 5]; // Try pages 1-5 to get diverse results
+    
+    for (let page of pagesToTry) {
+      if (games.length >= pageSize) break; // Stop if we have enough games
+      
+      params.page = page;
+      console.log(`📥 Fetching page ${page} (multiplier: ${fetchMultiplier}x, size: ${pageSize})`);
+      
+      try {
+        const response = await axios.get(`${RAWG_BASE_URL}/games`, {
+          params: params,
+          timeout: 10000
+        });
+        
+        let pageGames = filterAdultContent(response.data.results);
+        
+        // Apply rating filters based on selected filter type
+        if (isAllReviews) {
+          // All Reviews: return all games (no filtering)
+          console.log(`📊 All Reviews filter: returning all ${pageGames.length} games on page ${page}`);
+        } else if (isBestRatedFilter) {
+          // Best Rated: 3.5+ stars
+          pageGames = pageGames.filter(game => {
+            const rating = game.rating || 0;
+            return rating >= 3.5;
+          });
+          console.log(`⭐ Best Rated filter (3.5+): found ${pageGames.length} games on page ${page}`);
+        } else if (isMixedFilter) {
+          // Mixed Rated: 2.5-3.9 stars
+          pageGames = pageGames.filter(game => {
+            const rating = game.rating || 0;
+            return rating >= 2.5 && rating < 4.0;
+          });
+          console.log(`🎭 Mixed Rated filter (2.5-3.9): found ${pageGames.length} games on page ${page}`);
+        } else if (isLowestRatedFilter) {
+          // Lowest Rated: 0.1-3.4 stars
+          pageGames = pageGames.filter(game => {
+            const rating = game.rating || 0;
+            return rating > 0.1 && rating < 3.5;
+          });
+          console.log(`📉 Lowest Rated filter (0.1-3.4): found ${pageGames.length} games on page ${page}`);
+        } else if (isNoReviewedFilter) {
+          // No Reviews: rating = 0 (unreviewed)
+          pageGames = pageGames.filter(game => {
+            const rating = game.rating || 0;
+            return rating === 0;
+          });
+          console.log(`❌ No Reviewed filter (0⭐): found ${pageGames.length} games on page ${page}`);
+        }
+        
+        console.log(`  ✅ Page ${page}: ${pageGames.length} games after filter`);
+        games = games.concat(pageGames);
+        
+      } catch (pageError) {
+        console.log(`  ⚠️ Page ${page} failed, continuing...`);
+      }
+    }
+    
+    // Apply PEGI filter on client-side (since RAWG doesn't have direct PEGI filtering)
+    if (pegiFilter) {
+      games = games.filter(game => {
+        const esrbRating = game.esrb_rating;
+        
+        // PEGI 3+ - allow all (no restriction)
+        if (pegiFilter === '3') return true;
+        
+        // PEGI 7+ - exclude ESRB Adult Only
+        if (pegiFilter === '7') {
+          return !esrbRating || esrbRating.name !== 'Adults Only';
+        }
+        
+        // PEGI 12+ - exclude ESRB M (Mature) and Adults Only
+        if (pegiFilter === '12') {
+          return !esrbRating || (esrbRating.name !== 'Mature' && esrbRating.name !== 'Adults Only');
+        }
+        
+        // PEGI 16+ - exclude ESRB M (Mature) and Adults Only
+        if (pegiFilter === '16') {
+          return !esrbRating || (esrbRating.name !== 'Mature' && esrbRating.name !== 'Adults Only');
+        }
+        
+        // PEGI 18+ - allow all (including mature)
+        if (pegiFilter === '18') return true;
+        
+        return true;
+      });
+      console.log(`👶 PEGI filter applied: ${pegiFilter}+ (filtered to ${games.length} games)`);
+    }
+    
+    // Remove duplicates
+    const uniqueGames = [];
+    const seenIds = new Set();
+    for (let game of games) {
+      if (!seenIds.has(game.id)) {
+        uniqueGames.push(game);
+        seenIds.add(game.id);
+      }
+    }
+    games = uniqueGames;
+    
+    // If no-reviewed filter and we got very few results, try a more lenient approach
+    if (isNoReviewedFilter && games.length < 5) {
+      console.log(`⚠️ No-reviewed filter returned ${games.length} games, trying lenient filter (rating <= 0.5)...`);
+      games = []; // Reset and try again with lenient filter
+      
+      // Re-fetch with lenient filter
+      for (let page of [1, 2, 3]) {
+        try {
+          const params2 = { ...params, page: page };
+          const response = await axios.get(`${RAWG_BASE_URL}/games`, {
+            params: params2,
+            timeout: 10000
+          });
+          
+          let pageGames = filterAdultContent(response.data.results);
+          pageGames = pageGames.filter(game => {
+            const rating = game.rating || 0;
+            return rating <= 0.5; // Very low or no rating
+          });
+          games = games.concat(pageGames);
+          
+          if (games.length >= pageSize) break;
+        } catch (e) {
+          // Continue to next page
+        }
+      }
+      
+      console.log(`✅ Lenient no-reviewed filter: ${games.length} games found`);
+    }
+    
+    // Remove duplicates again if we re-fetched
+    const finalGames = [];
+    const finalSeenIds = new Set();
+    for (let game of games) {
+      if (!finalSeenIds.has(game.id)) {
+        finalGames.push(game);
+        finalSeenIds.add(game.id);
+      }
+    }
+    games = finalGames;
+    
+    // Trim to requested size
+    games = games.slice(0, pageSize);
+    
+    console.log(`✅ Returned ${games.length}/${pageSize} games`);
+    if (games.length > 0) {
+      console.log(`📌 Sample:`, games.slice(0, 2).map(g => `${g.name} (${g.rating || 0}⭐)`));
+    }
+    
     res.json({
-      ...response.data,
-      results: filteredGames.slice(0, 50)
+      count: 93484,
+      next: null,
+      previous: null,
+      results: games
     });
   } catch (error) {
+    console.error(`❌ Erreur API jeux populaires:`, error.message);
     res.status(error.response?.status || 500).json({ 
       error: 'Erreur lors de la récupération des jeux populaires'
     });
@@ -270,29 +469,148 @@ app.get('/api/games/upcoming', async (req, res) => {
 
 app.get('/api/games/search', async (req, res) => {
   const { query } = req.query;
+  const page = parseInt(req.query.page) || 1;
+  const pageSize = parseInt(req.query.page_size) || 20;
+  const genres = req.query.genres || '';
+  const platforms = req.query.platforms || '';
+  let sort = req.query.sort || '-rating';
+  const pegiFilter = req.query.pegi || '';
   
   if (!query || query.trim() === '') {
     return res.status(400).json({ error: 'Le paramètre de recherche est requis' });
   }
   
+  // Determine the ordering for RAWG API based on sort parameter
+  let ordering;
+  const isMixedFilter = sort === 'mixed';
+  const isAllReviews = sort === '';
+  const isNoReviewedFilter = sort === 'no-reviewed';
+  const isLowestRatedFilter = sort === 'rating';
+  
+  if (isMixedFilter) {
+    // For mixed filter, fetch with rating ordering and filter client-side
+    ordering = '-rating'; // Fetch rated games first
+  } else if (isAllReviews) {
+    // For all reviews, use default diverse ordering
+    ordering = '-added'; // Most recently added
+  } else if (isNoReviewedFilter) {
+    // For no reviewed, fetch games and filter by rating = 0
+    ordering = '-added'; // Most recently added unrated games
+  } else if (isLowestRatedFilter) {
+    // For lowest rated, fetch all games and filter client-side
+    ordering = '-rating'; // Fetch rated games first to have more options to filter
+  } else {
+    // For best rated, use provided sort
+    ordering = sort;
+  }
+  
   try {
+    console.log(`🔍 Recherche: "${query}" (page ${page}, ${pageSize} par page, sort: ${sort})`);
+    
+    // Build the params object
+    const params = {
+      key: RAWG_API_KEY,
+      search: query,
+      page: 1,
+      page_size: (isMixedFilter || isNoReviewedFilter || isLowestRatedFilter) ? pageSize * 3 : pageSize * 3, // Fetch more for filters that need client-side filtering
+      ordering: ordering,
+      exclude_tags: '80',
+      exclude_additions: true
+    };
+    
+    // Apply filters if provided
+    if (genres) {
+      params.genres = genres;
+      console.log(`🎮 Genre filter applied: ${genres}`);
+    }
+    if (platforms) {
+      params.platforms = platforms;
+      console.log(`🖥️ Platform filter applied: ${platforms}`);
+    }
+    
     const response = await axios.get(`${RAWG_BASE_URL}/games`, {
-      params: {
-        key: RAWG_API_KEY,
-        search: query,
-        page_size: 40,
-        exclude_tags: '80',
-        exclude_additions: true
-      },
+      params: params,
       timeout: 10000
     });
     
-    const filteredGames = filterAdultContent(response.data.results);
+    let allGames = filterAdultContent(response.data.results);
+    
+    // Apply rating filter for "mixed" option (3.0 - 3.9 stars)
+    if (isMixedFilter) {
+      allGames = allGames.filter(game => {
+        const rating = game.rating || 0;
+        return rating >= 3.0 && rating < 4.0;
+      });
+      console.log(`⭐ Mixed rating filter applied (3.0-3.9): found ${allGames.length} games`);
+    }
+    
+    // Apply rating filter for "lowest rated" option (0.1 - 2.9 stars)
+    if (sort === 'rating') {
+      allGames = allGames.filter(game => {
+        const rating = game.rating || 0;
+        return rating > 0.1 && rating < 3.0;
+      });
+      console.log(`📉 Lowest Rated filter applied (0.1-2.9): found ${allGames.length} games`);
+    }
+    
+    // Apply rating filter for "no-reviewed" option (rating = 0)
+    if (isNoReviewedFilter) {
+      allGames = allGames.filter(game => {
+        const rating = game.rating || 0;
+        return rating === 0;
+      });
+      console.log(`❌ No Reviewed filter applied (rating = 0): found ${allGames.length} games`);
+    }
+    
+    // Apply PEGI filter on client-side
+    if (pegiFilter) {
+      allGames = allGames.filter(game => {
+        const esrbRating = game.esrb_rating;
+        
+        // PEGI 3+ - allow all
+        if (pegiFilter === '3') return true;
+        
+        // PEGI 7+ - exclude Adults Only
+        if (pegiFilter === '7') {
+          return !esrbRating || esrbRating.name !== 'Adults Only';
+        }
+        
+        // PEGI 12+ - exclude Mature and Adults Only
+        if (pegiFilter === '12') {
+          return !esrbRating || (esrbRating.name !== 'Mature' && esrbRating.name !== 'Adults Only');
+        }
+        
+        // PEGI 16+ - exclude Mature and Adults Only
+        if (pegiFilter === '16') {
+          return !esrbRating || (esrbRating.name !== 'Mature' && esrbRating.name !== 'Adults Only');
+        }
+        
+        // PEGI 18+ - allow all
+        if (pegiFilter === '18') return true;
+        
+        return true;
+      });
+      console.log(`👶 PEGI filter applied: ${pegiFilter}+ (filtered to ${allGames.length} games)`);
+    }
+    
+    // Shuffle for variety
+    allGames = allGames.sort(() => Math.random() - 0.5);
+    
+    // Paginate the shuffled results
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedGames = allGames.slice(startIndex, endIndex);
+    
+    console.log(`✅ Résultats recherche: ${paginatedGames.length} jeux aléatoires pour page ${page}`);
+    
     res.json({
-      ...response.data,
-      results: filteredGames.slice(0, 50)
+      count: response.data.count || paginatedGames.length,
+      next: null,
+      previous: null,
+      results: paginatedGames
     });
   } catch (error) {
+    console.error(`❌ Erreur recherche "${query}":`, error.message);
     res.status(error.response?.status || 500).json({ 
       error: 'Erreur lors de la recherche'
     });

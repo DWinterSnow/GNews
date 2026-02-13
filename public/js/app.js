@@ -523,7 +523,7 @@ function displayNews() {
         loadMoreDiv.innerHTML = `
             <button onclick="loadMoreNews()" class="load-more-btn">
                 <span style="font-size: 20px;">📰</span>
-                Charger plus (${newsToShow.length - displayedNewsCount} restants)
+                Charger plus
             </button>
         `;
         container.appendChild(loadMoreDiv);

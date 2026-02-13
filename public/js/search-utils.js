@@ -36,10 +36,10 @@ function showSearchResults(games, news, query, isLoading = false) {
                 <button class="search-modal-close" onclick="closeSearchResults()">✕</button>
             </div>
             <div class="search-tabs">
-                <button class="search-tab-btn ${gamesTab}" onclick="switchSearchTab('games')">
+                <button class="search-tab-btn ${gamesTab}" onclick="switchSearchTab('games', event)">
                     🎮 Jeux (${games?.length || 0})
                 </button>
-                <button class="search-tab-btn ${newsTab}" onclick="switchSearchTab('news')">
+                <button class="search-tab-btn ${newsTab}" onclick="switchSearchTab('news', event)">
                     📰 Actualités (${news?.length || 0})
                 </button>
             </div>
@@ -64,7 +64,7 @@ function showSearchResults(games, news, query, isLoading = false) {
     };
 }
 
-function switchSearchTab(tab) {
+function switchSearchTab(tab, evt) {
     // Hide all tabs
     document.querySelectorAll('.search-tab-content').forEach(el => {
         el.classList.remove('active');
@@ -81,8 +81,18 @@ function switchSearchTab(tab) {
         selectedContent.classList.add('active');
     }
     
-    // Mark button as active
-    event.target.classList.add('active');
+    // Mark button as active - use event parameter or find the button that was clicked
+    if (evt && evt.target) {
+        evt.target.classList.add('active');
+    } else {
+        // Fallback: find the button with data-tab attribute or by position
+        const allButtons = document.querySelectorAll('.search-tab-btn');
+        allButtons.forEach((btn, index) => {
+            if ((tab === 'games' && index === 0) || (tab === 'news' && index === 1)) {
+                btn.classList.add('active');
+            }
+        });
+    }
 }
 
 function createSearchGameCard(game) {

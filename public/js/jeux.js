@@ -15,7 +15,8 @@ if (typeof allNews === 'undefined') {
 }
 
 let displayedGames = [];
-let currentPage = 1;
+let newGamesInBatch = []; // Track newly fetched games for this batch
+let loadCount = 0; // Track how many load attempts (for logging)
 let isLoading = false;
 let totalResults = 0;
 
@@ -23,12 +24,12 @@ let totalResults = 0;
 let filters = {
     genre: '',
     platform: '',
-    sort: '-rating',
-    year: '',
+    sort: '',
+    pegi: '',
     search: ''
 };
 
-const GAMES_PER_PAGE = 20;
+const GAMES_PER_PAGE = 100;
 const FETCH_TIMEOUT = 10000; // 10 secondes max
 
 // Initialisation
@@ -135,8 +136,7 @@ async function loadGames(append = false) {
     isLoading = true;
     
     if (!append) {
-        showLoading();
-        currentPage = 1;
+        loadCount = 0;
         displayedGames = [];
     }
     
@@ -147,7 +147,8 @@ async function loadGames(append = false) {
     }, FETCH_TIMEOUT);
     
     try {
-        console.log(`📥 Chargement des jeux (page ${currentPage})...`);
+        loadCount++;
+        console.log(`📥 Chargement des jeux (chargement #${loadCount}, mode append=${append})...`);
         
         // Construction de l'URL
         let endpoint = '/api/games/popular';
@@ -155,6 +156,8 @@ async function loadGames(append = false) {
         
         // Paramètres de base
         params.append('page_size', GAMES_PER_PAGE);
+        
+        console.log(`🔢 Requête #${loadCount} (page_size: ${GAMES_PER_PAGE})`);
         
         // Si recherche active, utiliser l'endpoint de recherche
         if (filters.search && filters.search.trim() !== '') {
@@ -166,12 +169,14 @@ async function loadGames(append = false) {
         // Appliquer les filtres
         if (filters.genre) params.append('genres', filters.genre);
         if (filters.platform) params.append('platforms', filters.platform);
-        if (filters.year) {
-            params.append('dates', `${filters.year}-01-01,${filters.year}-12-31`);
+        // IMPORTANT: Always include sort parameter, even if empty string (for "All Reviews")
+        params.append('sort', filters.sort);
+        if (filters.pegi) {
+            params.append('pegi', filters.pegi);
         }
         
         const url = `${endpoint}?${params.toString()}`;
-        console.log('📡 URL:', url);
+        console.log('📡 URL complète:', url);
         
         const response = await fetch(url, {
             signal: controller.signal,
@@ -207,25 +212,44 @@ async function loadGames(append = false) {
         
         totalResults = data.count || data.results.length;
         
+        console.log(`📊 Réponse API: ${data.results.length} jeux (chargement #${loadCount}, total: ${totalResults})`);
+        
         if (append) {
-            displayedGames = [...displayedGames, ...data.results];
+            // Deduplicate - avoid adding games that are already displayed
+            const existingIds = new Set(displayedGames.map(g => g.id));
+            newGamesInBatch = data.results.filter(g => !existingIds.has(g.id));
+            console.log(`📋 Batch #${loadCount}: IDs reçus:`, data.results.map(g => `${g.id}(${g.name.substring(0, 15)})`).join(', '));
+            console.log(`✨ Nouveaux jeux #${loadCount}: ${newGamesInBatch.length}/${data.results.length} (après déduplication)`);
+            if (newGamesInBatch.length > 0) {
+                console.log(`🎮 Premiers nouveaux jeux:`, newGamesInBatch.slice(0, 3).map(g => g.name));
+            }
+            displayedGames = [...displayedGames, ...newGamesInBatch];
+            console.log(`📊 Total affiché: ${displayedGames.length} jeux`);
         } else {
+            console.log(`🎮 Premiers jeux chargés au chargement:`, data.results.slice(0, 3).map(g => g.name));
+            newGamesInBatch = data.results; // First load, all are new
             displayedGames = data.results;
+            console.log(`📊 Première charge: ${displayedGames.length} jeux`);
         }
         
-        console.log(`✅ ${data.results.length} jeux chargés (total: ${displayedGames.length})`);
-        
         // Afficher les jeux
-        displayGames();
+        displayGames(append);
         updateResultsCount();
         
         // Gérer le bouton "Charger plus"
         const loadMoreContainer = document.getElementById('loadMoreContainer');
         if (loadMoreContainer) {
-            if (displayedGames.length < totalResults && data.results.length === GAMES_PER_PAGE) {
+            // Show the button if:
+            // 1. We got results in this request, OR
+            // 2. We have games displayed and we're in append mode
+            const canLoadMore = (data.results && data.results.length > 0) || (append && displayedGames.length > 0);
+            
+            if (canLoadMore) {
                 loadMoreContainer.style.display = 'flex';
+                console.log(`📊 Bouton "Charger plus" visible (${displayedGames.length} jeux affichés)`);
             } else {
                 loadMoreContainer.style.display = 'none';
+                console.log('⚠️ Pas assez de jeux pour charger plus');
             }
         }
         
@@ -233,48 +257,102 @@ async function loadGames(append = false) {
         clearTimeout(timeoutId);
         console.error('❌ Erreur lors du chargement des jeux:', error);
         
-        let errorMessage = error.message;
-        if (error.name === 'AbortError') {
-            errorMessage = 'La requête a pris trop de temps. Vérifiez votre connexion ou réessayez.';
+        const container = document.getElementById('gamesList');
+        if (container && !append) {
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+                    <h3 style="font-size: 24px; color: var(--yellow); margin-bottom: 15px;">Erreur de chargement</h3>
+                    <p style="color: rgba(255,255,255,0.8); margin-bottom: 30px; font-size: 16px;">
+                        Impossible de charger les jeux. Vérifiez votre connexion et réessayez.
+                    </p>
+                    <button onclick="location.reload()" style="
+                        padding: 12px 24px;
+                        background: linear-gradient(45deg, var(--purple), var(--cyan));
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">🔄 Recharger</button>
+                </div>
+            `;
         }
-        
-        showError(errorMessage);
     } finally {
         isLoading = false;
     }
 }
 
 // Afficher les jeux
-function displayGames() {
+function displayGames(append = false) {
     const container = document.getElementById('gamesList');
     if (!container) {
         console.error('❌ Container #gamesList introuvable');
         return;
     }
     
-    if (displayedGames.length === 0) {
+    try {
+        if (!append && displayedGames.length === 0) {
+            // No games on initial load
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">🎮</div>
+                    <h3 style="font-size: 24px; color: var(--cyan); margin-bottom: 10px;">Aucun jeu trouvé</h3>
+                    <p style="color: rgba(255,255,255,0.7);">Essayez de modifier vos filtres de recherche</p>
+                    <button onclick="resetFilters()" style="
+                        margin-top: 20px;
+                        padding: 12px 24px;
+                        background: linear-gradient(45deg, var(--purple), var(--cyan));
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">Réinitialiser les filtres</button>
+                </div>
+            `;
+            return;
+        }
+        
+        if (append) {
+            // Only render NEW games when appending
+            if (newGamesInBatch.length === 0) {
+                console.log('⚠️ Aucun nouveau jeu à ajouter (tous les jeux étaient des doublons)');
+                return;
+            }
+            const newGamesHTML = newGamesInBatch.map(game => createGameCard(game)).join('');
+            const placeholder = container.querySelector('.loading');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            container.innerHTML += newGamesHTML;
+            console.log(`✅ ${newGamesInBatch.length} nouveaux jeux ajoutés (${displayedGames.length} au total)`);
+        } else {
+            // Initial load: render all games
+            if (displayedGames.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                        <div style="font-size: 64px; margin-bottom: 20px;">🎮</div>
+                        <h3 style="font-size: 24px; color: var(--cyan); margin-bottom: 10px;">Aucun jeu trouvé</h3>
+                        <p style="color: rgba(255,255,255,0.7);">Essayez de modifier vos filtres de recherche</p>
+                    </div>
+                `;
+                return;
+            }
+            const gamesHTML = displayedGames.map(game => createGameCard(game)).join('');
+            container.innerHTML = gamesHTML;
+            console.log(`✅ ${displayedGames.length} jeux affichés au chargement`);
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'affichage des jeux:', error);
         container.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
-                <div style="font-size: 64px; margin-bottom: 20px;">🎮</div>
-                <h3 style="font-size: 24px; color: var(--cyan); margin-bottom: 10px;">Aucun jeu trouvé</h3>
-                <p style="color: rgba(255,255,255,0.7);">Essayez de modifier vos filtres de recherche</p>
-                <button onclick="resetFilters()" style="
-                    margin-top: 20px;
-                    padding: 12px 24px;
-                    background: linear-gradient(45deg, var(--purple), var(--cyan));
-                    color: white;
-                    border: none;
-                    border-radius: 10px;
-                    font-weight: 600;
-                    cursor: pointer;
-                ">Réinitialiser les filtres</button>
+                <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+                <h3 style="font-size: 24px; color: var(--yellow); margin-bottom: 10px;">Erreur d'affichage</h3>
+                <p style="color: rgba(255,255,255,0.8);">${error.message}</p>
             </div>
         `;
-        return;
     }
-    
-    const gamesHTML = displayedGames.map(game => createGameCard(game)).join('');
-    container.innerHTML = gamesHTML;
 }
 
 // Créer une carte de jeu
@@ -283,55 +361,38 @@ function createGameCard(game) {
         game.platforms.slice(0, 3).map(p => getPlatformIcon(p.platform.name)).join(' ') : '';
     
     const genres = game.genres ? 
-        game.genres.slice(0, 2).map(g => `<span class="genre-tag">${g.name}</span>`).join('') : '';
+        game.genres.slice(0, 2).map(g => `<span class="game-card-large-genre-tag">${g.name}</span>`).join('') : '';
     
     return `
-        <div class="game-card" onclick="viewGame(${game.id})" style="
-            background: linear-gradient(135deg, rgba(145, 78, 255, 0.2), rgba(16, 21, 157, 0.2));
-            border: 2px solid rgba(37, 244, 238, 0.2);
-            border-radius: 20px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-        " onmouseover="this.style.transform='translateY(-5px)'; this.style.borderColor='var(--cyan)'; this.style.boxShadow='0 10px 30px rgba(37, 244, 238, 0.3)'" 
-           onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='rgba(37, 244, 238, 0.2)'; this.style.boxShadow='none'">
+        <div class="game-card-large" onclick="viewGame(${game.id})">
+            <img src="${game.background_image || '/img/placeholder.svg'}" 
+                 alt="${game.name}" 
+                 class="game-card-large-image"
+                 onerror="this.src='/img/placeholder.svg'">
             
-            <div style="position: relative; overflow: hidden; height: 200px;">
-                 <img src="${game.background_image || '/img/placeholder.svg'}" 
-                     alt="${game.name}" 
-                     style="width: 100%; height: 100%; object-fit: cover;"
-                     onerror="this.src='/img/placeholder.svg'">
-                
-                ${game.rating ? `
-                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 10px; backdrop-filter: blur(10px);">
-                        <span style="color: var(--yellow); font-weight: 700; font-size: 16px;">
-                            ⭐ ${game.rating}
-                        </span>
-                    </div>
-                ` : ''}
+            <div class="game-card-large-title">
+                ${game.name.length > 40 ? game.name.substring(0, 40) + '...' : game.name}
             </div>
             
-            <div style="padding: 20px;">
-                <h3 style="font-size: 18px; font-weight: 700; color: white; margin-bottom: 10px; line-height: 1.3;">
-                    ${game.name.length > 40 ? game.name.substring(0, 40) + '...' : game.name}
-                </h3>
-                
-                <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-                    ${genres}
+            ${game.rating ? `
+                <div class="game-card-large-rating">
+                    <span>⭐</span>
+                    <span class="rating-value">${game.rating}</span>
                 </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <div style="color: var(--cyan); font-size: 14px;">
-                        ${platforms || '🎮'}
-                    </div>
-                    
-                    ${game.released ? `
-                        <div style="color: rgba(255,255,255,0.7); font-size: 13px;">
-                            📅 ${formatDate(game.released)}
-                        </div>
-                    ` : ''}
+            ` : ''}
+            
+            ${game.released ? `
+                <div class="game-card-large-date">
+                    📅 ${formatDate(game.released)}
                 </div>
+            ` : ''}
+            
+            <div class="game-card-large-genres">
+                ${genres}
+            </div>
+            
+            <div class="game-card-large-platforms">
+                ${platforms || '🎮'}
             </div>
         </div>
     `;
@@ -353,11 +414,11 @@ function getPlatformIcon(platformName) {
 function applyFilters() {
     filters.genre = document.getElementById('genreFilter')?.value || '';
     filters.platform = document.getElementById('platformFilter')?.value || '';
-    filters.sort = document.getElementById('sortFilter')?.value || '-rating';
-    filters.year = document.getElementById('yearFilter')?.value || '';
+    filters.sort = document.getElementById('sortFilter')?.value || '';
+    filters.pegi = document.getElementById('pegiFilter')?.value || '';
     
+    console.log('🎯 Filtres appliqués:', filters);
     updateResultsTitle();
-    currentPage = 1;
     loadGames(false);
 }
 
@@ -365,15 +426,15 @@ function applyFilters() {
 function resetFilters() {
     document.getElementById('genreFilter').value = '';
     document.getElementById('platformFilter').value = '';
-    document.getElementById('sortFilter').value = '-rating';
-    document.getElementById('yearFilter').value = '';
+    document.getElementById('sortFilter').value = '';
+    document.getElementById('pegiFilter').value = '';
     document.getElementById('searchInput').value = '';
     
     filters = {
         genre: '',
         platform: '',
-        sort: '-rating',
-        year: '',
+        sort: '',
+        pegi: '',
         search: ''
     };
     
@@ -457,12 +518,30 @@ async function performSearch() {
 
 // Charger plus de jeux
 function loadMoreGames() {
+    const btn = event.target.closest('.load-more-btn');
+    
     if (isLoading) {
         console.log('⚠️ Chargement déjà en cours');
         return;
     }
-    currentPage++;
-    loadGames(true);
+    
+    console.log(`📄 Chargement de nouveaux jeux aléatoires (actuellement: ${displayedGames.length} jeux)`);
+    
+    // Disable button and show loading state
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span style="font-size: 20px; margin-right: 10px;">⏳</span>Chargement...';
+        btn.style.opacity = '0.7';
+    }
+    
+    loadGames(true).finally(() => {
+        // Re-enable button
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span style="font-size: 20px; margin-right: 10px;">🎮</span>Charger plus de jeux';
+            btn.style.opacity = '1';
+        }
+    });
 }
 
 // Mettre à jour le compteur de résultats
@@ -484,6 +563,10 @@ function updateResultsTitle() {
     
     if (filters.search) {
         resultsTitle.textContent = `Résultats pour "${filters.search}"`;
+    } else if (filters.sort) {
+        const sortSelect = document.getElementById('sortFilter');
+        const sortName = sortSelect?.options[sortSelect.selectedIndex]?.text || 'Tous les jeux';
+        resultsTitle.textContent = sortName;
     } else if (filters.genre) {
         const genreSelect = document.getElementById('genreFilter');
         const genreName = genreSelect?.options[genreSelect.selectedIndex]?.text || 'Genre';
@@ -512,74 +595,4 @@ function formatDate(dateString) {
         month: 'short', 
         day: 'numeric' 
     });
-}
-
-// Afficher le chargement
-function showLoading() {
-    const container = document.getElementById('gamesList');
-    if (container) {
-        container.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 80px 20px;">
-                <div style="font-size: 64px; margin-bottom: 20px; animation: spin 2s linear infinite;">🎮</div>
-                <div style="font-size: 24px; color: var(--cyan); font-weight: 600; margin-bottom: 10px;">
-                    Chargement des jeux...
-                </div>
-                <div style="color: rgba(255,255,255,0.6);">
-                    Récupération depuis RAWG API
-                </div>
-            </div>
-            <style>
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            </style>
-        `;
-    }
-}
-
-// Afficher une erreur
-function showError(message) {
-    const container = document.getElementById('gamesList');
-    if (container) {
-        container.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
-                <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
-                <h3 style="font-size: 24px; color: var(--yellow); margin-bottom: 15px;">Erreur de chargement</h3>
-                <p style="color: rgba(255,255,255,0.8); margin-bottom: 30px; font-size: 16px; max-width: 600px; margin-left: auto; margin-right: auto;">
-                    ${message}
-                </p>
-                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                    <button onclick="loadGames()" style="
-                        padding: 15px 30px;
-                        background: linear-gradient(45deg, var(--purple), var(--cyan));
-                        color: white;
-                        border: none;
-                        border-radius: 10px;
-                        font-size: 16px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: transform 0.3s;
-                    " onmouseover="this.style.transform='scale(1.05)'" 
-                       onmouseout="this.style.transform='scale(1)'">
-                        🔄 Réessayer
-                    </button>
-                    <button onclick="resetFilters()" style="
-                        padding: 15px 30px;
-                        background: rgba(255, 255, 255, 0.1);
-                        color: white;
-                        border: 2px solid var(--cyan);
-                        border-radius: 10px;
-                        font-size: 16px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        transition: transform 0.3s;
-                    " onmouseover="this.style.transform='scale(1.05)'" 
-                       onmouseout="this.style.transform='scale(1)'">
-                        🔄 Réinitialiser
-                    </button>
-                </div>
-            </div>
-        `;
-    }
 }

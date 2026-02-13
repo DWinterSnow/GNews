@@ -1,4 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250">
-  <rect width="100%" height="100%" fill="#10159d"/>
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="Segoe UI, Tahoma, Geneva, Verdana, sans-serif" font-size="20">No Image</text>
+<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#914eff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1015a1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#grad1)"/>
+  <circle cx="200" cy="150" r="80" fill="rgba(37,244,238,0.3)"/>
+  <g fill="#25f4ee" opacity="0.6">
+    <text x="200" y="140" font-size="48" font-weight="bold" text-anchor="middle" font-family="Arial">🎮</text>
+    <text x="200" y="185" font-size="18" text-anchor="middle" font-family="Arial" fill="#fcc419">Image non disponible</text>
+  </g>
 </svg>

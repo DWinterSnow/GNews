@@ -255,12 +255,8 @@ function applyFilters() {
     
     if (currentSort === 'recent') {
         result.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-    } else if (currentSort === 'popular') {
-        result.sort((a, b) => {
-            const scoreA = (a.ups || 0) + (a.rating || 0);
-            const scoreB = (b.ups || 0) + (b.rating || 0);
-            return scoreB - scoreA;
-        });
+    } else if (currentSort === 'oldest') {
+        result.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
     }
     
     window.filteredNews = result;
@@ -373,31 +369,59 @@ function displayNews() {
     const newsToShow = filtered.slice(0, displayedCount);
     const hasMore = filtered.length > displayedCount;
     
-    // Générer le HTML de toutes les cartes
-    const newsHTML = newsToShow.map(article => createNewsCard(article)).join('');
+    const articlesHTML = newsToShow.map(article => {
+        const sourceIcon = getSourceIcon(article.source);
+        const categoryBadge = getCategoryBadgeStyled(article.detectedCategory);
+        
+        let description = article.description || '';
+        description = description.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+        const shortDescription = description.length > 100 
+            ? description.substring(0, 100) + '...' 
+            : description;
+        
+        let title = article.title || 'Sans titre';
+        title = title.replace(/\s+/g, ' ').trim();
+        const shortTitle = title.length > 80 
+            ? title.substring(0, 80) + '...' 
+            : title;
+        
+        return `
+            <div class="news-card" onclick="window.open('${article.url}', '_blank')">
+                <img src="${article.image}" 
+                     alt="${shortTitle}" 
+                     class="news-image"
+                     onerror="this.src='/img/placeholder.svg'">
+                <div class="news-content">
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                        <span class="source-badge">${sourceIcon} ${article.author}</span>
+                        ${categoryBadge}
+                    </div>
+                    <h3 class="news-title">${shortTitle}</h3>
+                    ${shortDescription ? `<p style="color: rgba(255,255,255,0.7); font-size: 13px; line-height: 1.5; margin-top: 8px;">${shortDescription}</p>` : ''}
+                    <p style="margin-top: auto; padding-top: 10px; color: var(--cyan); font-size: 12px;">
+                        📅 ${formatDate(article.publishedAt)}
+                    </p>
+                </div>
+            </div>
+        `;
+    }).join('');
     
-    // Vider et remplir le container
-    container.innerHTML = newsHTML;
+    container.innerHTML = articlesHTML;
     
-    // Ajouter le bouton "Charger plus" si nécessaire
     if (hasMore) {
         const loadMoreDiv = document.createElement('div');
         loadMoreDiv.className = 'load-more-container';
         loadMoreDiv.innerHTML = `
             <button onclick="loadMoreNews()" class="load-more-btn">
                 <span style="font-size: 24px;">📰</span>
-                Charger plus d'articles (${filtered.length - displayedCount} restants)
+                Charger plus d'articles
             </button>
         `;
         container.appendChild(loadMoreDiv);
     } else if (filtered.length > 30) {
         const endDiv = document.createElement('div');
         endDiv.className = 'load-more-container';
-        endDiv.innerHTML = `
-            <p style="color: var(--cyan); font-size: 18px; font-weight: 600;">
-                ✅ Tous les articles affichés (${filtered.length} au total)
-            </p>
-        `;
+        endDiv.innerHTML = '<p style="color: var(--cyan); font-size: 16px; font-weight: 600;">✅ Tous les articles affichés</p>';
         container.appendChild(endDiv);
     }
     
@@ -485,6 +509,38 @@ function getSourceIcon(source) {
         'guardian': '🗞️'
     };
     return icons[source] || '📰';
+}
+
+// Badge de catégorie stylisé
+function getCategoryBadgeStyled(category) {
+    const badges = {
+        'guide': { icon: '📖', label: 'Guide', color: '#4CAF50', bgColor: 'rgba(76, 175, 80, 0.2)' },
+        'teste': { icon: '⭐', label: 'Test', color: '#FF9800', bgColor: 'rgba(255, 152, 0, 0.2)' },
+        'patch': { icon: '🔧', label: 'Patch', color: '#2196F3', bgColor: 'rgba(33, 150, 243, 0.2)' },
+        'e-sport': { icon: '🏆', label: 'E-Sport', color: '#F44336', bgColor: 'rgba(244, 67, 54, 0.2)' },
+        'article': { icon: '📰', label: 'Article', color: '#9C27B0', bgColor: 'rgba(156, 39, 176, 0.2)' },
+        'discussion': { icon: '💬', label: 'Discussion', color: '#00BCD4', bgColor: 'rgba(0, 188, 212, 0.2)' }
+    };
+    
+    const badge = badges[category] || badges['article'];
+    
+    return `
+        <span class="category-badge" style="
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: ${badge.bgColor};
+            color: ${badge.color};
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1.5px solid ${badge.color};
+        ">
+            <span style="font-size: 14px;">${badge.icon}</span>
+            ${badge.label}
+        </span>
+    `;
 }
 
 // Mettre à jour les statistiques

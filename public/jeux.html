@@ -83,25 +83,25 @@
                 </div>
                 
                 <div>
-                    <label style="display: block; margin-bottom: 10px; color: var(--cyan); font-weight: 600;">Trier par</label>
+                    <label style="display: block; margin-bottom: 10px; color: var(--cyan); font-weight: 600;">Trier par Note</label>
                     <select id="sortFilter" class="filter-select" onchange="applyFilters()">
-                        <option value="-rating">Meilleure note</option>
-                        <option value="-released">Plus récent</option>
-                        <option value="name">Nom (A-Z)</option>
-                        <option value="-added">Plus populaire</option>
+                        <option value="">All Reviews (Tous les jeux)</option>
+                        <option value="-rating">Best Rated (4–5 stars)</option>
+                        <option value="rating">Lowest Rated (0.1–2.9 stars)</option>
+                        <option value="mixed">Mixed Rated (3–3.9 stars)</option>
+                        <option value="no-reviewed">No Reviews (No star)</option>
                     </select>
                 </div>
                 
                 <div>
-                    <label style="display: block; margin-bottom: 10px; color: var(--cyan); font-weight: 600;">Année</label>
-                    <select id="yearFilter" class="filter-select" onchange="applyFilters()">
-                        <option value="">Toutes les années</option>
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
-                        <option value="2023">2023</option>
-                        <option value="2022">2022</option>
-                        <option value="2021">2021</option>
-                        <option value="2020">2020</option>
+                    <label style="display: block; margin-bottom: 10px; color: var(--cyan); font-weight: 600;">Âge PEGI</label>
+                    <select id="pegiFilter" class="filter-select" onchange="applyFilters()">
+                        <option value="">Tous les âges</option>
+                        <option value="3">3+</option>
+                        <option value="7">7+</option>
+                        <option value="12">12+</option>
+                        <option value="16">16+</option>
+                        <option value="18">18+</option>
                     </select>
                 </div>
             </div>

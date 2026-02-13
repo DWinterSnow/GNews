@@ -341,7 +341,7 @@ body {
 
 .news-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+    grid-template-columns: repeat(4, 1fr) !important;
     gap: 25px !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -350,7 +350,7 @@ body {
 /* ==================== NEWS CARD ==================== */
 .news-card {
     background: linear-gradient(135deg, rgba(145, 78, 255, 0.2), rgba(16, 21, 157, 0.3));
-    border-radius: 20px;
+    border-radius: 18px;
     overflow: hidden !important;
     box-shadow: 0 8px 30px var(--shadow);
     transition: all 0.4s;
@@ -358,9 +358,9 @@ body {
     backdrop-filter: blur(10px);
     display: flex !important;
     flex-direction: column !important;
-    cursor: pointer;
-    height: 480px !important;
+    height: 360px !important;
     max-width: 100% !important;
+    cursor: pointer;
     box-sizing: border-box !important;
 }
 
@@ -372,9 +372,9 @@ body {
 
 .news-image {
     width: 100%;
-    height: 200px;
-    min-height: 200px;
-    max-height: 200px;
+    height: 140px !important;
+    min-height: 140px !important;
+    max-height: 140px !important;
     object-fit: cover;
     transition: transform 0.4s;
     flex-shrink: 0;
@@ -386,15 +386,12 @@ body {
 }
 
 .news-content {
-    padding: 20px;
+    padding: 14px;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    flex: 1;
-    overflow: hidden;
-    min-height: 0;
-    max-height: 280px;
-    height: 280px;
+    overflow: hidden !important;
+    max-height: 220px !important;
 }
 
 .news-meta {
@@ -437,21 +434,20 @@ body {
 
 .news-title {
     color: var(--white);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.4;
-    margin: 0;
-    height: 50px;
-    overflow: hidden;
+    font-size: 14px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    line-height: 1.3;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
+    overflow: hidden !important;
     text-overflow: ellipsis;
     word-break: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
-    flex-shrink: 0;
+    max-height: 54px;
 }
 
 .news-description {
