@@ -11,6 +11,11 @@
         <div class="container">
             <div class="header-content">
                 <h1 class="logo">GNews</h1>
+                <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
                 <nav class="nav">
                     <ul>
                         <li><a href="index.html" class="nav-link active">Accueil</a></li>
@@ -18,6 +23,19 @@
                         <li><a href="jeux.html" class="nav-link">Jeux</a></li>
                     </ul>
                 </nav>
+                <!-- Mobile Nav Overlay -->
+                <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+                <div class="mobile-nav" id="mobileNav">
+                    <div class="mobile-nav-header">
+                        <h2 class="mobile-nav-logo">GNews</h2>
+                        <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
+                    </div>
+                    <ul class="mobile-nav-links">
+                        <li><a href="index.html" class="mobile-nav-link active">🏠 Accueil</a></li>
+                        <li><a href="actu.html" class="mobile-nav-link">📰 Actualités</a></li>
+                        <li><a href="jeux.html" class="mobile-nav-link">🎮 Jeux</a></li>
+                    </ul>
+                </div>
                 <div class="header-actions">
                     <div class="search-box">
                         <input type="search" placeholder="Quel jeu vous cherchez ?" id="searchInput">

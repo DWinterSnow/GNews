@@ -12,6 +12,11 @@
         <div class="container">
                 <div class="header-content">
                     <h1 class="logo">GNews</h1>
+                    <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                    </button>
                     <nav class="nav">
                         <ul>
                             <li><a href="index.html" class="nav-link">Accueil</a></li>
@@ -19,6 +24,19 @@
                             <li><a href="jeux.html" class="nav-link active">Jeux</a></li>
                         </ul>
                     </nav>
+                    <!-- Mobile Nav Overlay -->
+                    <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+                    <div class="mobile-nav" id="mobileNav">
+                        <div class="mobile-nav-header">
+                            <h2 class="mobile-nav-logo">GNews</h2>
+                            <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
+                        </div>
+                        <ul class="mobile-nav-links">
+                            <li><a href="index.html" class="mobile-nav-link">🏠 Accueil</a></li>
+                            <li><a href="actu.html" class="mobile-nav-link">📰 Actualités</a></li>
+                            <li><a href="jeux.html" class="mobile-nav-link active">🎮 Jeux</a></li>
+                        </ul>
+                    </div>
                     <div class="header-actions">
                         <div class="search-box">
                             <input type="search" placeholder="Quel jeu vous cherchez ?" id="searchInput">
@@ -82,22 +100,25 @@
                     <label style="display: block; margin-bottom: 10px; color: var(--cyan); font-weight: 600;">Plateforme</label>
                     <select id="platformFilter" class="filter-select" onchange="applyFilters()">
                         <option value="">Toutes les plateformes</option>
-                        <option value="4">PC</option>
-                        <option value="18">PlayStation</option>
-                        <option value="1">Xbox</option>
-                        <option value="7">Nintendo Switch</option>
-                        <option value="171">VR</option>
+                        <option value="1">PC</option>
+                        <option value="2">PlayStation</option>
+                        <option value="3">Xbox</option>
+                        <option value="7">Nintendo</option>
+                        <option value="8">Android</option>
+                        <option value="4">iOS</option>
                     </select>
                 </div>
                 
                 <div>
                     <label style="display: block; margin-bottom: 10px; color: var(--cyan); font-weight: 600;">Trier par Note</label>
                     <select id="sortFilter" class="filter-select" onchange="applyFilters()">
-                        <option value="">All Reviews (Tous les jeux)</option>
-                        <option value="-rating">Best Rated (4–5 stars)</option>
-                        <option value="rating">Lowest Rated (0.1–2.9 stars)</option>
-                        <option value="mixed">Mixed Rated (3–3.9 stars)</option>
-                        <option value="no-reviewed">No Reviews (No star)</option>
+                        <option value="">Tous les jeux</option>
+                        <option value="best">⭐ Best Rated (4–5 stars)</option>
+                        <option value="lowest">👎 Lowest Rated (0–2.9 stars)</option>
+                        <option value="mixed">🤔 Mixed (3–3.9 stars)</option>
+                        <option value="no-reviewed">❓ No Reviews</option>
+                        <option value="-released">📅 Plus récents</option>
+                        <option value="-added">🔥 Plus populaires</option>
                     </select>
                 </div>
                 

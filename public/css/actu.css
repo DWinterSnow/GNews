@@ -228,6 +228,18 @@ body {
     margin-bottom: 30px;
 }
 
+@media (max-width: 1100px) {
+    .filters-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .filters-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .filter-group {
     background: rgba(255, 255, 255, 0.05);
     padding: 25px;
@@ -720,10 +732,6 @@ body {
 
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 1200px) {
-    .filters-grid {
-        grid-template-columns: 1fr;
-    }
-    
     .news-grid {
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     }
@@ -1124,5 +1132,362 @@ body {
     
     .search-result-meta {
         font-size: 12px;
+    }
+}
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 12px;
+    }
+
+    .header {
+        padding: 12px 0;
+    }
+
+    .header-content {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .logo {
+        font-size: 24px;
+    }
+
+    .nav {
+        display: none;
+    }
+
+    .header-actions {
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    .search-box {
+        flex: 1;
+        max-width: 180px;
+    }
+
+    .search-box input {
+        width: 100%;
+        font-size: 13px;
+    }
+
+    .auth-buttons {
+        gap: 6px;
+    }
+
+    .btn-login,
+    .btn-signup {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .hero-section {
+        padding: 40px 0;
+    }
+
+    .hero-title {
+        font-size: 30px;
+    }
+
+    .hero-subtitle {
+        font-size: 16px;
+    }
+
+    .filters-section {
+        padding: 25px 0;
+        border-radius: 12px;
+        margin-bottom: 25px;
+    }
+
+    .filters-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .filter-group {
+        padding: 15px;
+    }
+
+    .filter-title {
+        font-size: 15px;
+    }
+
+    .filter-btn,
+    .source-btn,
+    .sort-btn {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+
+    .stats-bar {
+        flex-wrap: wrap;
+        gap: 15px;
+        padding: 15px 20px;
+        justify-content: center;
+    }
+
+    .stat-value {
+        font-size: 24px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+    }
+
+    .refresh-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .news-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 15px !important;
+    }
+
+    .news-card {
+        height: 320px !important;
+    }
+
+    .news-image {
+        height: 120px !important;
+        min-height: 120px !important;
+        max-height: 120px !important;
+    }
+
+    .load-more-btn {
+        padding: 12px 30px;
+        font-size: 15px;
+    }
+
+    .icon-btn {
+        width: 38px;
+        height: 38px;
+    }
+
+    .footer {
+        padding: 40px 0 20px;
+        margin-top: 40px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .footer-about {
+        text-align: center;
+        padding-right: 0;
+    }
+
+    .footer-section {
+        text-align: center;
+    }
+
+    .footer-logo {
+        font-size: 32px;
+    }
+
+    .social-links {
+        justify-content: center;
+    }
+
+    .footer-links {
+        align-items: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0 8px;
+    }
+
+    .header {
+        padding: 8px 0;
+    }
+
+    .logo {
+        font-size: 20px;
+    }
+
+    .search-box {
+        max-width: 120px;
+        padding: 4px 8px;
+    }
+
+    .search-box input {
+        font-size: 11px;
+    }
+
+    .btn-login,
+    .btn-signup {
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 8px;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .icon-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .hero-section {
+        padding: 25px 0;
+    }
+
+    .hero-title {
+        font-size: 24px;
+        gap: 8px;
+    }
+
+    .hero-subtitle {
+        font-size: 14px;
+    }
+
+    .icon {
+        font-size: 32px;
+    }
+
+    .filters-section {
+        padding: 15px 0;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .filter-group {
+        padding: 12px;
+        border-radius: 10px;
+    }
+
+    .filter-title {
+        font-size: 13px;
+        margin-bottom: 10px;
+    }
+
+    .filter-btn,
+    .source-btn,
+    .sort-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+
+    .stats-bar {
+        padding: 12px 15px;
+        border-radius: 10px;
+        gap: 10px;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .stat-label {
+        font-size: 10px;
+    }
+
+    .refresh-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .news-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .news-card {
+        height: 300px !important;
+        max-width: 100% !important;
+    }
+
+    .news-image {
+        height: 110px !important;
+        min-height: 110px !important;
+        max-height: 110px !important;
+    }
+
+    .news-content {
+        padding: 10px;
+    }
+
+    .news-title {
+        font-size: 13px;
+    }
+
+    .source-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .category-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .news-footer {
+        padding-top: 10px;
+    }
+
+    .news-date {
+        font-size: 11px;
+    }
+
+    .load-more-btn {
+        padding: 10px 24px;
+        font-size: 13px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .news-section {
+        padding: 25px 0 40px;
+    }
+
+    .footer {
+        padding: 30px 0 15px;
+        margin-top: 30px;
+    }
+
+    .footer-logo {
+        font-size: 28px;
+    }
+
+    .footer-description {
+        font-size: 13px;
+    }
+
+    .footer-section h3 {
+        font-size: 16px;
+    }
+
+    .social-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .social-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+    }
+
+    .empty-title {
+        font-size: 20px;
+    }
+
+    .empty-description {
+        font-size: 14px;
     }
 }

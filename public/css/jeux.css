@@ -1094,3 +1094,291 @@ body {
         font-size: 12px;
     }
 }
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 12px;
+    }
+
+    .header {
+        padding: 12px 0;
+    }
+
+    .header-content {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .logo {
+        font-size: 24px;
+    }
+
+    .nav {
+        display: none;
+    }
+
+    .header-actions {
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    .search-box {
+        flex: 1;
+        max-width: 180px;
+    }
+
+    .search-box input {
+        width: 100%;
+        font-size: 13px;
+    }
+
+    .auth-buttons {
+        gap: 6px;
+    }
+
+    .btn-login,
+    .btn-signup {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .section-title {
+        font-size: 22px;
+        padding: 15px 20px;
+    }
+
+    .news-list {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+    }
+
+    .game-card-large {
+        min-height: 250px;
+    }
+
+    .game-card-large-title {
+        font-size: 15px;
+    }
+
+    .news-card {
+        height: 350px;
+    }
+
+    .news-image {
+        height: 160px;
+    }
+
+    .news-title {
+        font-size: 14px;
+    }
+
+    .load-more-btn {
+        padding: 14px 30px;
+        font-size: 14px;
+    }
+
+    .icon-btn {
+        width: 38px;
+        height: 38px;
+    }
+
+    .footer {
+        padding: 40px 0 20px;
+        margin-top: 40px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .footer-about {
+        text-align: center;
+        padding-right: 0;
+    }
+
+    .footer-section {
+        text-align: center;
+    }
+
+    .footer-logo {
+        font-size: 32px;
+    }
+
+    .social-links {
+        justify-content: center;
+    }
+
+    .footer-links {
+        align-items: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0 8px;
+    }
+
+    .header {
+        padding: 8px 0;
+    }
+
+    .logo {
+        font-size: 20px;
+    }
+
+    .search-box {
+        max-width: 120px;
+        padding: 4px 8px;
+    }
+
+    .search-box input {
+        font-size: 11px;
+    }
+
+    .btn-login,
+    .btn-signup {
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 8px;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .icon-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .section-highlight {
+        padding: 25px 0;
+    }
+
+    .section-dark {
+        padding: 30px 0;
+        margin: 25px 0;
+    }
+
+    .section-title {
+        font-size: 18px;
+        padding: 12px 15px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+    }
+
+    .icon {
+        font-size: 22px;
+    }
+
+    .filter-select {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+
+    .news-list {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .game-card-large {
+        min-height: 220px;
+        border-radius: 12px;
+    }
+
+    .game-card-large-title {
+        font-size: 14px;
+    }
+
+    .game-card-large-rating {
+        font-size: 14px;
+    }
+
+    .platform-badge {
+        font-size: 10px;
+        padding: 4px 10px;
+    }
+
+    .news-card {
+        height: 320px;
+        border-radius: 14px;
+    }
+
+    .news-image {
+        height: 140px;
+    }
+
+    .news-content {
+        padding: 12px;
+        gap: 6px;
+    }
+
+    .news-title {
+        font-size: 13px;
+    }
+
+    .genre-tag {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .news-rating {
+        font-size: 12px;
+    }
+
+    .game-card-date {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .load-more-container {
+        padding: 20px 10px;
+    }
+
+    .load-more-btn {
+        padding: 12px 24px;
+        font-size: 13px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .section-news {
+        padding: 30px 0;
+    }
+
+    .footer {
+        padding: 30px 0 15px;
+        margin-top: 30px;
+    }
+
+    .footer-logo {
+        font-size: 28px;
+    }
+
+    .footer-description {
+        font-size: 13px;
+    }
+
+    .footer-section h3 {
+        font-size: 16px;
+    }
+
+    .social-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .social-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .btn-outline {
+        padding: 10px 18px;
+        font-size: 13px;
+    }
+}

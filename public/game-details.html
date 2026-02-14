@@ -12,6 +12,11 @@
         <div class="container">
             <div class="header-content">
                 <h1 class="logo">GNews</h1>
+                <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                    <span class="hamburger-line"></span>
+                </button>
                 <nav class="nav">
                     <ul>
                         <li><a href="index.html" class="nav-link">Accueil</a></li>
@@ -19,6 +24,19 @@
                         <li><a href="jeux.html" class="nav-link">Jeux</a></li>
                     </ul>
                 </nav>
+                <!-- Mobile Nav Overlay -->
+                <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+                <div class="mobile-nav" id="mobileNav">
+                    <div class="mobile-nav-header">
+                        <h2 class="mobile-nav-logo">GNews</h2>
+                        <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
+                    </div>
+                    <ul class="mobile-nav-links">
+                        <li><a href="index.html" class="mobile-nav-link">🏠 Accueil</a></li>
+                        <li><a href="actu.html" class="mobile-nav-link">📰 Actualités</a></li>
+                        <li><a href="jeux.html" class="mobile-nav-link">🎮 Jeux</a></li>
+                    </ul>
+                </div>
                 <div class="header-actions">
                     <div class="search-box">
                         <input type="search" placeholder="Quel jeu vous cherchez ?" id="searchInput">
@@ -47,19 +65,6 @@
             </div>
         </div>
     </header>
-    
-    <!-- Breadcrumb séparé -->
-    <div class="breadcrumb-container">
-        <div class="container">
-            <div class="breadcrumb">
-                <a href="index.html">Accueil</a>
-                <span>›</span>
-                <a href="index.html">Jeux</a>
-                <span>›</span>
-                <span id="breadcrumbGame">Chargement...</span>
-            </div>
-        </div>
-    </div>
 
     <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
@@ -100,7 +105,19 @@
                     </div>
 
                     <!-- Thumbnails -->
-                    <div class="thumbnails" id="thumbnails"></div>
+                    <div class="thumbnails-wrapper">
+                        <button class="thumb-arrow thumb-prev" id="thumbPrevBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                <path d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </button>
+                        <div class="thumbnails" id="thumbnails"></div>
+                        <button class="thumb-arrow thumb-next" id="thumbNextBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                <path d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Info Sidebar -->
@@ -112,7 +129,7 @@
                                 <div class="info-label">Note générale</div>
                                 <div class="info-value">
                                     <span class="rating-stars" id="ratingStars"></span>
-                                    <div style="font-size: 14px; margin-top: 5px;" id="ratingText"></div>
+                                    <span style="font-size: 13px; margin-left: 6px;" id="ratingText"></span>
                                 </div>
                             </div>
                             
@@ -121,7 +138,7 @@
                                 <div class="info-value" id="ratingsCount"></div>
                             </div>
 
-                            <div class="info-row" style="padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <div class="info-row" style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
                                 <div class="info-label">Date de sortie</div>
                                 <div class="info-value" style="color: white;" id="releaseDate"></div>
                             </div>
@@ -135,17 +152,17 @@
                                 <div class="info-label">Éditeur</div>
                                 <div class="info-value" id="publisher"></div>
                             </div>
+
+                            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 8px;">
+                                <div class="tags-title">Tags populaires</div>
+                                <div class="tags" id="gameTags"></div>
+                            </div>
+
+                            <div style="padding-top: 10px; margin-top: 6px;">
+                                <div class="tags-title">Genres</div>
+                                <div class="tags" id="gameGenres"></div>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="info-card tags-card">
-                        <div class="tags-title">Tags populaires</div>
-                        <div class="tags" id="gameTags"></div>
-                    </div>
-
-                    <div class="info-card tags-card">
-                        <div class="tags-title">Genres</div>
-                        <div class="tags" id="gameGenres"></div>
                     </div>
                 </div>
             </div>
@@ -163,13 +180,6 @@
                 <!-- Action Sidebar -->
                 <div class="action-sidebar">
                     <div class="action-card">
-                        <button class="btn-secondary" id="followBtn">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M12 4v16m8-8H4"/>
-                            </svg>
-                            <span id="followText">Suivre</span>
-                        </button>
-
                         <div class="btn-group">
                             <button class="btn-icon" title="Ajouter aux favoris" id="favoriteBtn">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -276,36 +286,90 @@
         <!-- Avis de l'utilisateur (affiché après soumission) -->
         <div id="userReviewDisplay"></div>
 
-        <!-- Formulaire d'avis -->
-        <div class="review-form-container">
-            <h3 class="form-title">✍️ Donnez votre avis</h3>
+        <!-- Formulaire de modification d'avis (caché par défaut) -->
+        <div class="review-form-container hidden" id="editFormContainer">
+            <h3 class="form-title">✏️ Modifier votre avis</h3>
             <div class="review-form">
                 <div class="form-group">
                     <label class="form-label">Votre note *</label>
-                    <div class="rating-stars-input">
-                        <span class="rating-star">☆</span>
-                        <span class="rating-star">☆</span>
-                        <span class="rating-star">☆</span>
-                        <span class="rating-star">☆</span>
-                        <span class="rating-star">☆</span>
-                    </div>
-                    <div class="rating-value-display">
-                        <span id="ratingValue">0</span>/5
+                    <div class="rating-row">
+                        <div class="rating-stars-input" id="editRatingStarsInput">
+                            <span class="edit-rating-star">☆</span>
+                            <span class="edit-rating-star">☆</span>
+                            <span class="edit-rating-star">☆</span>
+                            <span class="edit-rating-star">☆</span>
+                            <span class="edit-rating-star">☆</span>
+                        </div>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="editOwnGame">
+                                <span class="checkbox-custom"></span>
+                                <span>Je possède ce jeu</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="editRecommend">
+                                <span class="checkbox-custom"></span>
+                                <span>Je recommande ce jeu</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <div class="checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="ownGame">
-                            <span class="checkbox-custom"></span>
-                            <span>Je possède ce jeu</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="recommend">
-                            <span class="checkbox-custom"></span>
-                            <span>Je recommande ce jeu</span>
-                        </label>
+                    <label class="form-label" for="editReviewComment">Votre commentaire *</label>
+                    <textarea 
+                        id="editReviewComment" 
+                        class="form-textarea" 
+                        placeholder="Modifiez votre avis... (minimum 10 caractères)"
+                        rows="5"
+                        maxlength="1000"></textarea>
+                    <div class="char-counter">
+                        <span id="editCharCount">0</span>/1000
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-submit-review" id="editSubmitReview" style="flex: 1; padding: 10px 20px; font-size: 14px; border-radius: 10px;">
+                        ✅ Enregistrer les modifications
+                    </button>
+                    <button class="btn-submit-review" id="cancelEditReview" style="flex: 0.4; padding: 10px 20px; font-size: 14px; border-radius: 10px; background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));">
+                        ❌ Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toggle Review Form Button -->
+        <button class="btn-toggle-review" id="toggleReviewBtn" onclick="toggleReviewForm()">
+            ✍️ Donnez votre avis
+        </button>
+
+        <!-- Formulaire d'avis -->
+        <div class="review-form-container hidden" id="reviewFormContainer">
+            <h3 class="form-title">✍️ Donnez votre avis</h3>
+            <div class="review-form">
+                <div class="form-group">
+                    <label class="form-label">Votre note *</label>
+                    <div class="rating-row">
+                        <div class="rating-stars-input">
+                            <span class="rating-star">☆</span>
+                            <span class="rating-star">☆</span>
+                            <span class="rating-star">☆</span>
+                            <span class="rating-star">☆</span>
+                            <span class="rating-star">☆</span>
+                        </div>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="ownGame">
+                                <span class="checkbox-custom"></span>
+                                <span>Je possède ce jeu</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="recommend">
+                                <span class="checkbox-custom"></span>
+                                <span>Je recommande ce jeu</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 

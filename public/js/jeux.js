@@ -43,6 +43,9 @@ let newGamesInBatch = []; // Track newly fetched games for this batch
 let loadCount = 0; // Track how many load attempts (for logging)
 let isLoading = false;
 let totalResults = 0;
+let currentPage = 1; // Page courante pour la pagination
+let hasMorePages = true; // Y a-t-il encore des pages ?
+let discoverSeed = Math.floor(Math.random() * 1000); // Random seed per page load for variety
 
 // Paramètres de filtrage
 let filters = {
@@ -53,7 +56,7 @@ let filters = {
     search: ''
 };
 
-const GAMES_PER_PAGE = 100;
+const GAMES_PER_PAGE = 40;
 const FETCH_TIMEOUT = 10000; // 10 secondes max
 
 // Initialisation
@@ -163,6 +166,10 @@ async function loadGames(append = false) {
     if (!append) {
         loadCount = 0;
         displayedGames = [];
+        currentPage = 1;
+        hasMorePages = true;
+    } else {
+        currentPage++;
     }
     
     const controller = new AbortController();
@@ -173,16 +180,17 @@ async function loadGames(append = false) {
     
     try {
         loadCount++;
-        console.log(`📥 Chargement des jeux (chargement #${loadCount}, mode append=${append})...`);
+        console.log(`📥 Chargement des jeux (page ${currentPage}, mode append=${append})...`);
         
         // Construction de l'URL
-        let endpoint = '/api/games/popular';
+        let endpoint = '/api/games/discover';
         const params = new URLSearchParams();
         
-        // Paramètres de base
+        // Pagination
+        params.append('page', currentPage);
         params.append('page_size', GAMES_PER_PAGE);
         
-        console.log(`🔢 Requête #${loadCount} (page_size: ${GAMES_PER_PAGE})`);
+        console.log(`🔢 Page ${currentPage} (page_size: ${GAMES_PER_PAGE})`);
         
         // Si recherche active, utiliser l'endpoint de recherche
         if (filters.search && filters.search.trim() !== '') {
@@ -194,8 +202,9 @@ async function loadGames(append = false) {
         // Appliquer les filtres
         if (filters.genre) params.append('genres', filters.genre);
         if (filters.platform) params.append('platforms', filters.platform);
-        // IMPORTANT: Always include sort parameter, even if empty string (for "All Reviews")
-        params.append('sort', filters.sort);
+        if (filters.sort) params.append('sort', filters.sort);
+        // Send random seed so the server can vary results on each page load
+        params.append('seed', discoverSeed);
         if (filters.pegi) {
             params.append('pegi', filters.pegi);
         }
@@ -261,20 +270,18 @@ async function loadGames(append = false) {
         displayGames(append);
         updateResultsCount();
         
+        // Mettre à jour si on peut encore charger
+        hasMorePages = data.next !== false && data.results.length > 0;
+
         // Gérer le bouton "Charger plus"
         const loadMoreContainer = document.getElementById('loadMoreContainer');
         if (loadMoreContainer) {
-            // Show the button if:
-            // 1. We got results in this request, OR
-            // 2. We have games displayed and we're in append mode
-            const canLoadMore = (data.results && data.results.length > 0) || (append && displayedGames.length > 0);
-            
-            if (canLoadMore) {
+            if (hasMorePages) {
                 loadMoreContainer.style.display = 'flex';
-                console.log(`📊 Bouton "Charger plus" visible (${displayedGames.length} jeux affichés)`);
+                console.log(`📊 Bouton "Charger plus" visible (page ${currentPage}, ${displayedGames.length} jeux affichés)`);
             } else {
                 loadMoreContainer.style.display = 'none';
-                console.log('⚠️ Pas assez de jeux pour charger plus');
+                console.log('✅ Toutes les pages chargées');
             }
         }
         
@@ -455,6 +462,9 @@ function resetFilters() {
         pegi: '',
         search: ''
     };
+    
+    // New random seed so reset shows different games
+    discoverSeed = Math.floor(Math.random() * 1000);
     
     updateResultsTitle();
     loadGames(false);

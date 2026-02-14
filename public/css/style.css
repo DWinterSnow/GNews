@@ -120,6 +120,167 @@ body {
     border-bottom: 2px solid var(--cyan);
 }
 
+/* ==================== HAMBURGER MENU BUTTON ==================== */
+.hamburger-btn {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 10px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 42px;
+    height: 42px;
+}
+
+.hamburger-btn:hover {
+    border-color: var(--cyan);
+    background: rgba(37, 244, 238, 0.15);
+}
+
+.hamburger-line {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--white);
+    border-radius: 2px;
+    transition: all 0.3s;
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-btn.active .hamburger-line:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ==================== MOBILE NAV SLIDE PANEL ==================== */
+.mobile-nav-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(3px);
+}
+
+.mobile-nav-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+.mobile-nav {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(180deg, var(--dark-blue) 0%, var(--primary) 40%, var(--secondary) 100%);
+    z-index: 2000;
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 5px 0 30px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    border-right: 2px solid rgba(37, 244, 238, 0.3);
+}
+
+.mobile-nav.active {
+    left: 0;
+}
+
+.mobile-nav-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(37, 244, 238, 0.2);
+}
+
+.mobile-nav-logo {
+    font-size: 24px;
+    font-weight: bold;
+    background: linear-gradient(45deg, var(--cyan), var(--yellow));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.mobile-nav-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    line-height: 1;
+}
+
+.mobile-nav-close:hover {
+    background: rgba(37, 244, 238, 0.2);
+    border-color: var(--cyan);
+    transform: rotate(90deg);
+}
+
+.mobile-nav-links {
+    list-style: none;
+    padding: 15px 0;
+    margin: 0;
+}
+
+.mobile-nav-links li {
+    margin: 0;
+}
+
+.mobile-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    color: var(--white);
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s;
+    border-left: 3px solid transparent;
+}
+
+.mobile-nav-link:hover {
+    background: rgba(37, 244, 238, 0.1);
+    border-left-color: var(--cyan);
+    padding-left: 30px;
+}
+
+.mobile-nav-link.active {
+    background: rgba(37, 244, 238, 0.15);
+    border-left-color: var(--cyan);
+    color: var(--cyan);
+}
+
+@media (max-width: 768px) {
+    .hamburger-btn {
+        display: flex;
+    }
+}
+
 .header-actions {
     display: flex;
     align-items: center;
@@ -1342,5 +1503,364 @@ body {
     
     .search-result-meta {
         font-size: 12px;
+    }
+}
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+    .container {
+        padding: 0 12px;
+    }
+
+    .header {
+        padding: 12px 0;
+    }
+
+    .header-content {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .logo {
+        font-size: 24px;
+    }
+
+    .nav {
+        display: none;
+    }
+
+    .header-actions {
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    .search-box {
+        flex: 1;
+        max-width: 180px;
+    }
+
+    .search-box input {
+        width: 100%;
+        font-size: 13px;
+    }
+
+    .auth-buttons {
+        gap: 6px;
+    }
+
+    .btn-login,
+    .btn-signup {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .section-title {
+        font-size: 22px;
+        padding: 15px 20px;
+    }
+
+    .featured-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        height: auto;
+        min-height: auto;
+        gap: 12px;
+    }
+
+    .featured-card.large {
+        grid-column: 1;
+        grid-row: auto;
+        min-height: 200px;
+    }
+
+    .featured-card {
+        min-height: 160px;
+    }
+
+    .featured-title {
+        font-size: 15px;
+    }
+
+    .featured-content {
+        padding: 12px;
+    }
+
+    .tab-btn {
+        padding: 10px 16px;
+        font-size: 14px;
+        gap: 8px;
+    }
+
+    .filter-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .platform-tabs {
+        gap: 8px;
+    }
+
+    .platform-filters {
+        gap: 8px;
+    }
+
+    .games-grid {
+        padding: 15px 5px;
+        gap: 10px;
+    }
+
+    .game-card {
+        min-width: 140px !important;
+        max-width: 140px !important;
+        width: 140px !important;
+        height: 220px;
+    }
+
+    .game-card-image {
+        height: 110px;
+    }
+
+    .news-list {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+
+    .news-card {
+        height: 320px !important;
+        max-width: 100% !important;
+    }
+
+    .news-filters {
+        gap: 10px;
+    }
+
+    .sort-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+
+    .icon-btn {
+        width: 38px;
+        height: 38px;
+    }
+
+    .footer {
+        padding: 40px 0 20px;
+        margin-top: 40px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .footer-about {
+        text-align: center;
+        padding-right: 0;
+    }
+
+    .footer-section {
+        text-align: center;
+    }
+
+    .footer-logo {
+        font-size: 32px;
+    }
+
+    .social-links {
+        justify-content: center;
+    }
+
+    .footer-links {
+        align-items: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 0 8px;
+    }
+
+    .header {
+        padding: 8px 0;
+    }
+
+    .header-content {
+        gap: 8px;
+    }
+
+    .logo {
+        font-size: 20px;
+    }
+
+    .search-box {
+        max-width: 120px;
+        padding: 4px 8px;
+    }
+
+    .search-box input {
+        font-size: 11px;
+    }
+
+    .btn-login,
+    .btn-signup {
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 8px;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .icon-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .section-highlight {
+        padding: 25px 0;
+    }
+
+    .section-title {
+        font-size: 18px;
+        padding: 12px 15px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+    }
+
+    .icon {
+        font-size: 22px;
+    }
+
+    .featured-card.large {
+        min-height: 180px;
+    }
+
+    .featured-card {
+        min-height: 140px;
+    }
+
+    .featured-title {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .genre-tag {
+        font-size: 9px;
+        padding: 3px 8px;
+    }
+
+    .section-dark {
+        padding: 30px 0;
+        margin: 25px 0;
+    }
+
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        border-radius: 10px;
+    }
+
+    .tab-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .filter-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .game-card {
+        min-width: 120px !important;
+        max-width: 120px !important;
+        width: 120px !important;
+        height: 200px;
+        padding: 8px;
+        border-radius: 10px;
+    }
+
+    .game-card-image {
+        height: 95px;
+        border-radius: 8px;
+    }
+
+    .game-card-title {
+        font-size: 11px;
+    }
+
+    .game-card-rating {
+        font-size: 12px;
+    }
+
+    .game-card-date {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+
+    .news-card {
+        height: 300px !important;
+    }
+
+    .news-image {
+        height: 120px !important;
+        min-height: 120px !important;
+        max-height: 120px !important;
+    }
+
+    .news-content {
+        padding: 10px;
+    }
+
+    .news-title {
+        font-size: 13px;
+    }
+
+    .section-news {
+        padding: 30px 0;
+    }
+
+    .news-filters {
+        gap: 8px;
+    }
+
+    .sort-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .footer {
+        padding: 30px 0 15px;
+        margin-top: 30px;
+    }
+
+    .footer-logo {
+        font-size: 28px;
+    }
+
+    .footer-description {
+        font-size: 13px;
+    }
+
+    .footer-section h3 {
+        font-size: 16px;
+    }
+
+    .social-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .social-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .btn-outline {
+        padding: 10px 18px;
+        font-size: 13px;
     }
 }

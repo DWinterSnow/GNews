@@ -988,3 +988,243 @@ body {
         padding: 25px;
     }
 }
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+    .auth-container {
+        padding: 25px 15px;
+        min-height: calc(100vh - 200px);
+    }
+
+    .auth-wrapper {
+        max-width: 100%;
+    }
+
+    .auth-card {
+        padding: 30px 20px;
+        border-radius: 12px;
+    }
+
+    .auth-header h1 {
+        font-size: 26px;
+    }
+
+    .auth-header p {
+        font-size: 13px;
+    }
+
+    .auth-header {
+        margin-bottom: 20px;
+    }
+
+    .auth-tabs {
+        margin-bottom: 20px;
+    }
+
+    .auth-tab {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .progress-indicator {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+    }
+
+    .step-number {
+        width: 34px;
+        height: 34px;
+        font-size: 14px;
+    }
+
+    .step-label {
+        font-size: 10px;
+    }
+
+    .register-step h3 {
+        font-size: 20px;
+    }
+
+    .step-description {
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        font-size: 13px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .profile-picture-preview {
+        width: 100px;
+        height: 100px;
+    }
+
+    .button-group {
+        gap: 10px;
+    }
+
+    .btn-secondary,
+    .btn-submit {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    .review-section {
+        padding: 18px;
+    }
+
+    .review-group h4 {
+        font-size: 14px;
+    }
+
+    .review-label,
+    .review-value {
+        font-size: 13px;
+    }
+
+    .crop-modal-content {
+        padding: 20px;
+    }
+
+    .crop-modal-content h3 {
+        font-size: 18px;
+    }
+
+    .crop-container {
+        min-height: 200px;
+    }
+
+    .crop-image {
+        max-height: 300px;
+    }
+
+    .crop-modal-buttons {
+        gap: 10px;
+    }
+
+    .modal-content {
+        padding: 25px;
+    }
+
+    .modal-content h3 {
+        font-size: 18px;
+    }
+
+    .modal-content p {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 380px) {
+    .auth-container {
+        padding: 15px 10px;
+    }
+
+    .auth-card {
+        padding: 20px 15px;
+    }
+
+    .auth-header h1 {
+        font-size: 22px;
+    }
+
+    .auth-header p {
+        font-size: 12px;
+    }
+
+    .step-number {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .step-label {
+        font-size: 9px;
+    }
+
+    .progress-line {
+        flex: 0.2;
+    }
+
+    .register-step h3 {
+        font-size: 18px;
+    }
+
+    .step-description {
+        font-size: 12px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .form-group label {
+        font-size: 12px;
+        margin-bottom: 6px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .profile-picture-preview {
+        width: 80px;
+        height: 80px;
+    }
+
+    .btn-small,
+    .btn-upload {
+        font-size: 11px;
+        padding: 6px 12px;
+    }
+
+    .profile-buttons {
+        gap: 8px;
+    }
+
+    .button-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .btn-secondary,
+    .btn-submit {
+        padding: 10px;
+        font-size: 12px;
+    }
+
+    .review-section {
+        padding: 14px;
+    }
+
+    .review-photo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .crop-container {
+        min-height: 150px;
+    }
+
+    .crop-image {
+        max-height: 200px;
+    }
+
+    .modal-content {
+        padding: 20px;
+    }
+
+    .modal-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+}

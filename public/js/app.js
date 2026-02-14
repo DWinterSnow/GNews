@@ -187,70 +187,72 @@ async function filterByPlatform(platform) {
     displayGames(filtered, currentTab);
 }
 
-// Charger les jeux en vedette
+// Charger les articles en vedette (3 dernières actualités)
 async function loadFeaturedGames() {
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         
-        console.log('📥 Chargement des jeux en vedette');
-        const response = await fetch('/api/games/trending', {
-            signal: controller.signal
+        console.log('📰 Chargement des articles en vedette');
+        const response = await fetch('/api/news', {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
         });
         
         clearTimeout(timeoutId);
         
         if (!response.ok) {
-            throw new Error('Erreur lors du chargement des jeux en vedette');
+            throw new Error('Erreur lors du chargement des actualités');
         }
         
         const data = await response.json();
         
-        if (data.results && data.results.length > 0) {
-            displayFeaturedGames(data.results.slice(0, 3));
+        if (Array.isArray(data) && data.length > 0) {
+            // Filtrer les articles avec une image valide, puis prendre les 3 plus récents
+            const articlesWithImages = data.filter(a => a.image && a.image.startsWith('http'));
+            const topArticles = articlesWithImages.slice(0, 3);
+            displayFeaturedArticles(topArticles);
         }
     } catch (error) {
-        console.error('❌ Erreur featured games:', error);
+        console.error('❌ Erreur articles en vedette:', error);
         const container = document.getElementById('featuredArticles');
         if (container) {
             container.innerHTML = `
                 <p style="grid-column: 1/-1; text-align: center; color: var(--yellow); padding: 40px;">
-                    Erreur de chargement des jeux en vedette
+                    Erreur de chargement des actualités
                 </p>
             `;
         }
     }
 }
 
-// Afficher les jeux en vedette
-function displayFeaturedGames(games) {
+// Afficher les articles en vedette
+function displayFeaturedArticles(articles) {
     const container = document.getElementById('featuredArticles');
     if (!container) return;
     
-    container.innerHTML = games.map((game, index) => `
-        <div class="featured-card ${index === 0 ? 'large' : ''}" onclick="viewGame(${game.id})">
-            <img src="${game.background_image || '/img/placeholder.svg'}" 
-                 alt="${game.name}" 
-                 class="featured-image"
-                 onerror="this.src='/img/placeholder.svg'">
-            <div class="featured-content">
-                <h3 class="featured-title">${game.name}</h3>
-                <div class="genre-tags">
-                    ${game.genres ? game.genres.slice(0, 3).map(g => 
-                        `<span class="genre-tag">${g.name}</span>`
-                    ).join('') : ''}
-                    ${game.platforms ? game.platforms.slice(0, 2).map(p => 
-                        `<span class="genre-tag">${p.platform.name}</span>`
-                    ).join('') : ''}
-                </div>
-                ${game.rating ? `
-                    <div class="news-rating">
-                        ${getStarRating(game.rating)} ${game.rating}/5
+    container.innerHTML = articles.map((article, index) => {
+        let title = (article.title || 'Sans titre').replace(/\s+/g, ' ').trim();
+        if (title.length > 90) title = title.substring(0, 90) + '...';
+        
+        const sourceIcon = article.source === 'reddit' ? '💬' : article.source === 'guardian' ? '🗞️' : '📰';
+        
+        return `
+            <div class="featured-card ${index === 0 ? 'large' : ''}" onclick="window.open('${article.url}', '_blank')">
+                <img src="${article.image || '/img/placeholder.svg'}" 
+                     alt="${title}" 
+                     class="featured-image"
+                     onerror="this.src='/img/placeholder.svg'">
+                <div class="featured-content">
+                    <h3 class="featured-title">${title}</h3>
+                    <div class="genre-tags">
+                        <span class="genre-tag">${sourceIcon} ${article.author || article.source}</span>
+                        <span class="genre-tag">📅 ${formatDate(article.publishedAt)}</span>
                     </div>
-                ` : ''}
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Charger les jeux
@@ -863,3 +865,56 @@ function showLoading(containerId) {
         `;
     }
 }
+
+// ============================================
+// MOBILE NAV HAMBURGER MENU
+// ============================================
+
+function initMobileNav() {
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+    const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+    const mobileNavClose = document.getElementById('mobileNavClose');
+
+    if (!hamburgerBtn || !mobileNav) return;
+
+    function openMobileNav() {
+        mobileNav.classList.add('active');
+        if (mobileNavOverlay) mobileNavOverlay.classList.add('active');
+        hamburgerBtn.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileNav() {
+        mobileNav.classList.remove('active');
+        if (mobileNavOverlay) mobileNavOverlay.classList.remove('active');
+        hamburgerBtn.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    hamburgerBtn.addEventListener('click', function() {
+        if (mobileNav.classList.contains('active')) {
+            closeMobileNav();
+        } else {
+            openMobileNav();
+        }
+    });
+
+    if (mobileNavClose) {
+        mobileNavClose.addEventListener('click', closeMobileNav);
+    }
+
+    if (mobileNavOverlay) {
+        mobileNavOverlay.addEventListener('click', closeMobileNav);
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && mobileNav.classList.contains('active')) {
+            closeMobileNav();
+        }
+    });
+}
+
+// Initialize mobile nav on DOM ready
+document.addEventListener('DOMContentLoaded', initMobileNav);

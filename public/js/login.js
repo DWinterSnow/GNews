@@ -2,6 +2,57 @@
 // Handles tab switching, multi-step registration, form submission, and profile picture upload
 
 // ============================================
+// MOBILE NAV HAMBURGER MENU
+// ============================================
+
+function initMobileNav() {
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    const mobileNav = document.getElementById('mobileNav');
+    const mobileNavOverlay = document.getElementById('mobileNavOverlay');
+    const mobileNavClose = document.getElementById('mobileNavClose');
+
+    if (!hamburgerBtn || !mobileNav) return;
+
+    function openMobileNav() {
+        mobileNav.classList.add('active');
+        if (mobileNavOverlay) mobileNavOverlay.classList.add('active');
+        hamburgerBtn.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMobileNav() {
+        mobileNav.classList.remove('active');
+        if (mobileNavOverlay) mobileNavOverlay.classList.remove('active');
+        hamburgerBtn.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    hamburgerBtn.addEventListener('click', function() {
+        if (mobileNav.classList.contains('active')) {
+            closeMobileNav();
+        } else {
+            openMobileNav();
+        }
+    });
+
+    if (mobileNavClose) {
+        mobileNavClose.addEventListener('click', closeMobileNav);
+    }
+
+    if (mobileNavOverlay) {
+        mobileNavOverlay.addEventListener('click', closeMobileNav);
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && mobileNav.classList.contains('active')) {
+            closeMobileNav();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initMobileNav);
+
+// ============================================
 // REGISTRATION STATE MANAGEMENT
 // ============================================
 

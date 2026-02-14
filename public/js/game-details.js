@@ -3,8 +3,19 @@
 let currentGame = null;
 let allMedia = [];
 let currentMediaIndex = 0;
-let isFollowing = false;
 let isFavorite = false;
+
+// Toggle review form visibility
+function toggleReviewForm() {
+    const container = document.getElementById('reviewFormContainer');
+    const btn = document.getElementById('toggleReviewBtn');
+    container.style.display = '';
+    container.classList.toggle('hidden');
+    btn.classList.toggle('active');
+    if (!container.classList.contains('hidden')) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
 
 // ==================== SYSTÈME DE STOCKAGE ====================
 
@@ -121,11 +132,25 @@ function setupEventListeners() {
     if (prevBtn) prevBtn.addEventListener('click', () => navigateMedia(-1));
     if (nextBtn) nextBtn.addEventListener('click', () => navigateMedia(1));
     
-    const followBtn = document.getElementById('followBtn');
+    // Thumbnail scroll arrows
+    const thumbPrev = document.getElementById('thumbPrevBtn');
+    const thumbNext = document.getElementById('thumbNextBtn');
+    const thumbContainer = document.getElementById('thumbnails');
+    
+    if (thumbPrev && thumbContainer) {
+        thumbPrev.addEventListener('click', () => {
+            thumbContainer.scrollBy({ left: -300, behavior: 'smooth' });
+        });
+    }
+    if (thumbNext && thumbContainer) {
+        thumbNext.addEventListener('click', () => {
+            thumbContainer.scrollBy({ left: 300, behavior: 'smooth' });
+        });
+    }
+    
     const favoriteBtn = document.getElementById('favoriteBtn');
     const shareBtn = document.getElementById('shareBtn');
     
-    if (followBtn) followBtn.addEventListener('click', toggleFollow);
     if (favoriteBtn) favoriteBtn.addEventListener('click', toggleFavorite);
     if (shareBtn) shareBtn.addEventListener('click', shareGame);
     
@@ -285,7 +310,6 @@ async function loadGameScreenshots(gameId) {
 function displayGameDetails(game) {
     document.title = `${game.name} - GNews`;
     document.getElementById('pageTitle').textContent = `${game.name} - GNews`;
-    document.getElementById('breadcrumbGame').textContent = game.name;
     document.getElementById('gameTitle').textContent = game.name;
     
     const platforms = game.platforms ? 
@@ -299,6 +323,13 @@ function displayGameDetails(game) {
         headerImage.onerror = () => {
             headerImage.src = 'https://via.placeholder.com/400x150/10159d/fff?text=No+Image';
         };
+    }
+    
+    // Short description in sidebar
+    const infoDesc = document.getElementById('infoDescription');
+    if (infoDesc) {
+        const rawDesc = game.description_raw || '';
+        infoDesc.textContent = rawDesc.length > 300 ? rawDesc.substring(0, 300) + '...' : rawDesc;
     }
     
     if (game.rating) {
@@ -374,6 +405,12 @@ function displayGallery() {
                 <img src="${media.url}" alt="Image ${index + 1}">
             </div>
         `).join('');
+        
+        // Scroll active thumbnail into view
+        const activeThumbnail = thumbnailsContainer.querySelector('.thumbnail.active');
+        if (activeThumbnail) {
+            activeThumbnail.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
     }
 }
 
@@ -722,24 +759,6 @@ function nextMedia() {
     document.getElementById('modalImage').src = allMedia[currentMediaIndex].url;
 }
 
-function toggleFollow() {
-    isFollowing = !isFollowing;
-    const followBtn = document.getElementById('followBtn');
-    const followText = document.getElementById('followText');
-    
-    if (isFollowing) {
-        followBtn.style.background = 'linear-gradient(135deg, var(--cyan), var(--yellow))';
-        followBtn.style.color = 'var(--dark-blue)';
-        followText.textContent = 'Suivi';
-        showNotification('Jeu ajoute a vos suivis !');
-    } else {
-        followBtn.style.background = 'linear-gradient(135deg, var(--purple), var(--blue))';
-        followBtn.style.color = 'white';
-        followText.textContent = 'Suivre';
-        showNotification('Jeu retire de vos suivis');
-    }
-}
-
 function toggleFavorite() {
     isFavorite = !isFavorite;
     const favoriteBtn = document.getElementById('favoriteBtn');
@@ -921,6 +940,7 @@ let reviewData = {
 // Initialiser la section commentaires
 function initCommentsSection() {
     setupCommentListeners();
+    setupEditFormListeners();
     
     // Afficher l'avis de l'utilisateur s'il existe
     if (currentUserReview) {
@@ -1105,79 +1125,174 @@ function resetReviewForm() {
 
 // Afficher l'avis de l'utilisateur
 function displayUserReview() {
-    const container = document.getElementById('userReviewDisplay');
-    if (!container || !currentUserReview) return;
-    
-    container.innerHTML = `
-        <div class="user-review-posted">
-            <div class="review-header-posted">
-                <h3>✅ Votre avis</h3>
-                <button class="btn-edit-review" onclick="editReview()">✏️ Modifier</button>
-            </div>
-            <div class="comment-card">
-                <div class="comment-header">
-                    <div class="comment-user">
-                        <div class="user-avatar">${currentUserReview.userAvatar}</div>
-                        <div class="user-info">
-                            <div class="user-name">${currentUserReview.userName}</div>
-                            <div class="comment-meta">
-                                <span>${getStarDisplay(currentUserReview.rating)}</span>
-                                ${currentUserReview.ownGame ? '<span class="badge-own">✓ Possède le jeu</span>' : ''}
-                                ${currentUserReview.recommend ? '<span class="badge-recommend">👍 Recommande</span>' : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="comment-date">${formatCommentDate(currentUserReview.date)}</div>
-                </div>
-                <div class="comment-text">${escapeHtml(currentUserReview.comment)}</div>
-            </div>
-        </div>
-    `;
-    
-    // Masquer le formulaire
-    const form = document.querySelector('.review-form-container');
-    if (form) form.style.display = 'none';
+    // Vider l'ancien affichage séparé
+    const oldContainer = document.getElementById('userReviewDisplay');
+    if (oldContainer) oldContainer.innerHTML = '';
+
+    if (!currentUserReview) return;
+
+    // Masquer le formulaire d'ajout
+    const form = document.getElementById('reviewFormContainer');
+    if (form) {
+        form.classList.add('hidden');
+        form.style.display = '';
+    }
+    const toggleBtn = document.getElementById('toggleReviewBtn');
+    if (toggleBtn) toggleBtn.classList.remove('active');
+
+    // Masquer le formulaire de modification
+    const editForm = document.getElementById('editFormContainer');
+    if (editForm) editForm.classList.add('hidden');
+
+    // Ré-afficher les commentaires avec l'avis utilisateur en premier
+    displayComments(gameComments);
+}
+
+// ==================== EDIT REVIEW FORM ====================
+
+let editReviewData = { rating: 0, ownGame: false, recommend: false, comment: '' };
+
+// Initialiser les écouteurs du formulaire de modification
+function setupEditFormListeners() {
+    const stars = document.querySelectorAll('.edit-rating-star');
+    stars.forEach((star, index) => {
+        star.addEventListener('click', () => selectEditRating(index + 1));
+        star.addEventListener('mouseenter', () => hoverEditRating(index + 1));
+    });
+
+    const ratingContainer = document.getElementById('editRatingStarsInput');
+    if (ratingContainer) {
+        ratingContainer.addEventListener('mouseleave', resetEditHoverRating);
+    }
+
+    const ownGameCheckbox = document.getElementById('editOwnGame');
+    if (ownGameCheckbox) {
+        ownGameCheckbox.addEventListener('change', () => {
+            editReviewData.ownGame = ownGameCheckbox.checked;
+        });
+    }
+
+    const recommendCheckbox = document.getElementById('editRecommend');
+    if (recommendCheckbox) {
+        recommendCheckbox.addEventListener('change', () => {
+            editReviewData.recommend = recommendCheckbox.checked;
+        });
+    }
+
+    const commentTextarea = document.getElementById('editReviewComment');
+    const charCount = document.getElementById('editCharCount');
+    if (commentTextarea && charCount) {
+        commentTextarea.addEventListener('input', () => {
+            charCount.textContent = commentTextarea.value.length;
+        });
+    }
+
+    const submitBtn = document.getElementById('editSubmitReview');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitEditReview);
+    }
+
+    const cancelBtn = document.getElementById('cancelEditReview');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', cancelEdit);
+    }
+}
+
+function selectEditRating(rating) {
+    editReviewData.rating = rating;
+    updateEditStarsDisplay(rating);
+}
+
+function hoverEditRating(rating) {
+    const stars = document.querySelectorAll('.edit-rating-star');
+    stars.forEach((star, index) => {
+        star.textContent = index < rating ? '⭐' : '☆';
+    });
+}
+
+function resetEditHoverRating() {
+    updateEditStarsDisplay(editReviewData.rating);
+}
+
+function updateEditStarsDisplay(rating) {
+    const stars = document.querySelectorAll('.edit-rating-star');
+    stars.forEach((star, index) => {
+        star.textContent = index < rating ? '⭐' : '☆';
+    });
+}
+
+// Soumettre la modification
+function submitEditReview() {
+    const commentTextarea = document.getElementById('editReviewComment');
+    const comment = commentTextarea ? commentTextarea.value.trim() : '';
+
+    if (editReviewData.rating === 0) {
+        showNotification('⚠️ Veuillez sélectionner une note', 'warning');
+        return;
+    }
+
+    if (comment.length < 10) {
+        showNotification('⚠️ Votre commentaire doit contenir au moins 10 caractères', 'warning');
+        return;
+    }
+
+    editReviewData.comment = comment;
+
+    // Mettre à jour l'avis
+    currentUserReview.rating = editReviewData.rating;
+    currentUserReview.ownGame = editReviewData.ownGame;
+    currentUserReview.recommend = editReviewData.recommend;
+    currentUserReview.comment = editReviewData.comment;
+    currentUserReview.date = new Date().toISOString();
+
+    saveUserReview(currentGame.id, currentUserReview);
+    displayUserReview();
+    showNotification('✅ Votre avis a été modifié avec succès !');
+}
+
+// Annuler la modification
+function cancelEdit() {
+    const editForm = document.getElementById('editFormContainer');
+    if (editForm) editForm.classList.add('hidden');
+    displayUserReview();
 }
 
 // Modifier l'avis
 function editReview() {
     if (!currentUserReview) return;
-    
-    // Afficher le formulaire
-    const form = document.querySelector('.review-form-container');
-    if (form) form.style.display = 'block';
-    
+
+    // Afficher le formulaire de modification
+    const editForm = document.getElementById('editFormContainer');
+    if (editForm) editForm.classList.remove('hidden');
+
     // Masquer l'avis affiché
     const display = document.getElementById('userReviewDisplay');
     if (display) display.innerHTML = '';
-    
-    // Pré-remplir le formulaire
-    reviewData = {
+
+    // Pré-remplir le formulaire de modification
+    editReviewData = {
         rating: currentUserReview.rating,
         ownGame: currentUserReview.ownGame,
         recommend: currentUserReview.recommend,
         comment: currentUserReview.comment
     };
-    
-    updateStarsDisplay(currentUserReview.rating);
-    
-    const ratingValue = document.getElementById('ratingValue');
-    if (ratingValue) ratingValue.textContent = currentUserReview.rating;
-    
-    const ownGameCheckbox = document.getElementById('ownGame');
+
+    updateEditStarsDisplay(currentUserReview.rating);
+
+    const ownGameCheckbox = document.getElementById('editOwnGame');
     if (ownGameCheckbox) ownGameCheckbox.checked = currentUserReview.ownGame;
-    
-    const recommendCheckbox = document.getElementById('recommend');
+
+    const recommendCheckbox = document.getElementById('editRecommend');
     if (recommendCheckbox) recommendCheckbox.checked = currentUserReview.recommend;
-    
-    const commentTextarea = document.getElementById('reviewComment');
+
+    const commentTextarea = document.getElementById('editReviewComment');
     if (commentTextarea) {
         commentTextarea.value = currentUserReview.comment;
-        document.getElementById('charCount').textContent = currentUserReview.comment.length;
+        document.getElementById('editCharCount').textContent = currentUserReview.comment.length;
     }
-    
+
     // Scroll vers le formulaire
-    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    editForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // Générer des commentaires fictifs (uniquement si aucun commentaire n'existe)
@@ -1248,8 +1363,46 @@ function generateRandomComment(rating) {
 function displayComments(comments) {
     const container = document.getElementById('commentsList');
     if (!container) return;
-    
-    if (comments.length === 0) {
+
+    // Construire le HTML de l'avis utilisateur s'il existe
+    let userReviewHtml = '';
+    if (currentUserReview) {
+        const r = currentUserReview;
+        userReviewHtml = `
+        <div class="comment-card user-own-review" data-comment-id="${r.id}">
+            <div class="comment-header">
+                <div class="comment-user">
+                    <div class="user-avatar">${r.userAvatar}</div>
+                    <div class="user-info">
+                        <div class="user-name">${r.userName} <span class="badge-own" style="margin-left: 8px;">Votre avis</span></div>
+                        <div class="comment-meta">
+                            <span>${getStarDisplay(r.rating)}</span>
+                            ${r.ownGame ? '<span class="badge-own">✓ Possède le jeu</span>' : ''}
+                            ${r.recommend ? '<span class="badge-recommend">👍 Recommande</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn-edit-review" onclick="editReview()">✏️ Modifier</button>
+                    <div class="comment-date">${formatCommentDate(r.date)}</div>
+                </div>
+            </div>
+            <div class="comment-text">${escapeHtml(r.comment)}</div>
+            <div class="comment-actions">
+                <button class="vote-btn ${userVotes[r.id] === 'like' ? 'active' : ''}" 
+                        onclick="voteComment('${r.id}', 'like')">
+                    👍 <span>${r.likes || 0}</span>
+                </button>
+                <button class="vote-btn ${userVotes[r.id] === 'dislike' ? 'active' : ''}" 
+                        onclick="voteComment('${r.id}', 'dislike')">
+                    👎 <span>${r.dislikes || 0}</span>
+                </button>
+            </div>
+        </div>
+        `;
+    }
+
+    if (comments.length === 0 && !currentUserReview) {
         container.innerHTML = `
             <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.6);">
                 <div style="font-size: 48px; margin-bottom: 15px;">💬</div>
@@ -1260,7 +1413,7 @@ function displayComments(comments) {
         return;
     }
     
-    container.innerHTML = comments.map(comment => `
+    const commentsHtml = comments.map(comment => `
         <div class="comment-card" data-comment-id="${comment.id}">
             <div class="comment-header">
                 <div class="comment-user">
@@ -1289,6 +1442,8 @@ function displayComments(comments) {
             </div>
         </div>
     `).join('');
+
+    container.innerHTML = userReviewHtml + commentsHtml;
 }
 
 // Voter sur un commentaire
