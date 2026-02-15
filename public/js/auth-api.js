@@ -398,6 +398,12 @@ async function updateUIBasedOnLogin() {
     // Show follow/review buttons
     const followButtons = document.querySelectorAll('.follow-btn');
     followButtons.forEach(btn => btn.style.display = 'block');
+
+    // Show "Mes Abonnements" nav links
+    const navMesAbo = document.getElementById('navMesAbonnements');
+    const mobileNavMesAbo = document.getElementById('mobileNavMesAbonnements');
+    if (navMesAbo) navMesAbo.style.display = '';
+    if (mobileNavMesAbo) mobileNavMesAbo.style.display = '';
   } else {
     // User is not logged in
     if (loginBtn) loginBtn.style.display = 'block';
@@ -407,6 +413,12 @@ async function updateUIBasedOnLogin() {
     // Hide follow/review buttons
     const followButtons = document.querySelectorAll('.follow-btn');
     followButtons.forEach(btn => btn.style.display = 'none');
+
+    // Hide "Mes Abonnements" nav links
+    const navMesAbo = document.getElementById('navMesAbonnements');
+    const mobileNavMesAbo = document.getElementById('mobileNavMesAbonnements');
+    if (navMesAbo) navMesAbo.style.display = 'none';
+    if (mobileNavMesAbo) mobileNavMesAbo.style.display = 'none';
   }
 }
 
@@ -512,3 +524,8 @@ async function displayProfilePicture(userId, imgElement) {
 });
 
 */
+
+// Auto-update UI on every page load
+document.addEventListener('DOMContentLoaded', async () => {
+  await updateUIBasedOnLogin();
+});

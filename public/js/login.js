@@ -740,8 +740,9 @@ async function handleLogin(event) {
       updateAuthUI();
       
       // Redirect after 1.5 seconds
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
       setTimeout(() => {
-        window.location.href = 'index.html';
+        window.location.href = redirectUrl || 'index.html';
       }, 1500);
     } else {
       document.getElementById('loginError').textContent = '' + result.message;
@@ -805,11 +806,12 @@ async function handleRegister(event) {
       });
       
       // Auto-login after registration
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
       setTimeout(async () => {
         const loginResult = await loginUser(loginEmail, loginPassword);
         if (loginResult.success) {
           sessionStorage.setItem('user', JSON.stringify(loginResult.user));
-          window.location.href = 'index.html';
+          window.location.href = redirectUrl || 'index.html';
         }
       }, 1500);
     } else {
@@ -930,8 +932,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const auth = await checkAuthStatus();
   
   if (auth.isLoggedIn) {
-    // Redirect to home if already logged in
-    window.location.href = 'index.html';
+    // Redirect to return page or home if already logged in
+    const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
+    window.location.href = redirectUrl || 'index.html';
   }
   
   // Check URL parameters to determine which tab should be shown

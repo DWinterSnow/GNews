@@ -314,7 +314,7 @@ function applyFilters() {
 }
 
 // Recherche
-function performSearch() {
+async function performSearch() {
     const query = document.getElementById('searchInput')?.value;
     if (!query || !query.trim()) {
         return;
@@ -340,57 +340,44 @@ function performSearch() {
     searchGames = Array.from(uniqueGamesMap.values());
     
     // Filter games
-    const filteredGames = searchGames.filter(game => 
+    let filteredGames = searchGames.filter(game => 
         game.name.toLowerCase().includes(query.toLowerCase()) ||
         (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
     );
     
-    // Filter news
+    // Filter news by text
     const allNewsData = window.allNews || [];
-    const filteredNews = allNewsData.filter(news => 
+    let filteredNews = allNewsData.filter(news => 
         news.title.toLowerCase().includes(query.toLowerCase()) ||
         (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
     );
-    
-    // Debug: log counts so we can see why games may be missing
-    console.log('🔎 window.allGames counts:', {
-        trending: (window.allGames?.trending || []).length,
-        upcoming: (window.allGames?.upcoming || []).length,
-        recent: (window.allGames?.recent || []).length,
-        filteredGames: filteredGames.length,
-        filteredNews: filteredNews.length
-    });
 
-    // Show search results popup (games priority)
+    // Show loading state
     if (window.showSearchResults) {
-        // If we have no local games, show loading and try API fallback (like app.js)
-        if (filteredGames.length === 0 && typeof window.searchGamesFromAPI === 'function') {
-            window.showSearchResults([], filteredNews, query, true);
-            // call the app's API search which will update the modal when results arrive
-            window.searchGamesFromAPI(query, filteredNews).catch(err => console.error(err));
-        } else if (filteredGames.length === 0 && typeof window.searchGamesFromAPI !== 'function') {
-            // fallback: perform the API call here and show results
-            window.showSearchResults([], filteredNews, query, true);
-            fetch(`/api/games/search?query=${encodeURIComponent(query)}`)
-                .then(r => r.ok ? r.json() : Promise.reject(r))
-                .then(data => {
-                    if (data.results && data.results.length > 0) {
-                        window.showSearchResults(data.results, filteredNews, query);
-                    } else {
-                        window.showSearchResults([], filteredNews, query);
-                    }
-                })
-                .catch(err => {
-                    console.error('API search fallback failed', err);
-                    window.showSearchResults([], filteredNews, query);
-                });
-        } else {
-            window.showSearchResults(filteredGames, filteredNews, query);
-            // also fetch more results if games are few
-            if (filteredGames.length < 10 && typeof window.searchGamesFromAPI === 'function') {
-                window.searchGamesFromAPI(query, filteredNews).catch(err => console.error(err));
+        window.showSearchResults([], [], query, true);
+    }
+
+    // If no local games, fetch from API
+    if (filteredGames.length === 0) {
+        try {
+            const resp = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                filteredGames = data && data.results ? data.results : (Array.isArray(data) ? data : []);
             }
+        } catch (err) {
+            console.error('API search fallback failed', err);
         }
+    }
+
+    // Enrich news with game-specific results
+    if (typeof fetchGameSpecificNews === 'function' && filteredGames.length > 0) {
+        filteredNews = await fetchGameSpecificNews(filteredGames, filteredNews);
+    }
+
+    // Show final results
+    if (window.showSearchResults) {
+        window.showSearchResults(filteredGames, filteredNews, query);
     }
 }
 

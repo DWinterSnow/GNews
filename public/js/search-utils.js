@@ -148,6 +148,40 @@ function closeSearchResults() {
     }
 }
 
+// Fetch game-specific news using the top game results' names
+// Merges with any text-filtered news and deduplicates
+async function fetchGameSpecificNews(games, textFilteredNews) {
+    if (!games || games.length === 0) return textFilteredNews || [];
+    
+    // Take the top 3 game names to search news for
+    const topGames = games.slice(0, 3);
+    const newsPromises = topGames.map(game => 
+        fetch(`/api/news/game/${encodeURIComponent(game.name)}`)
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => [])
+    );
+
+    const results = await Promise.all(newsPromises);
+    
+    // Merge all news: text-filtered + game-specific
+    const allResults = [...(textFilteredNews || [])];
+    results.flat().forEach(article => allResults.push(article));
+    
+    // Deduplicate by title
+    const seen = new Set();
+    const unique = allResults.filter(a => {
+        const key = (a.title || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '').substring(0, 60);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+    
+    // Sort by date
+    unique.sort((a, b) => new Date(b.publishedAt || b.pubDate || 0) - new Date(a.publishedAt || a.pubDate || 0));
+    
+    return unique;
+}
+
 function viewGame(id) {
     window.location.href = `game-details.html?id=${id}`;
 }

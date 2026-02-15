@@ -628,14 +628,18 @@ async function performSearch() {
         (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
     );
     
-    // Filter news
-    const filteredNews = allNews.filter(news => 
+    // Filter news by text
+    let filteredNews = allNews.filter(news => 
         news.title.toLowerCase().includes(query.toLowerCase()) ||
         (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
     );
     
     // If games found locally or have enough results, show immediately
     if (filteredGames.length > 0 || filteredNews.length > 0) {
+        // Enrich news with game-specific results
+        if (typeof fetchGameSpecificNews === 'function' && filteredGames.length > 0) {
+            filteredNews = await fetchGameSpecificNews(filteredGames, filteredNews);
+        }
         showSearchResults(filteredGames, filteredNews, query);
         // Also fetch from API to get more results
         if (filteredGames.length < 10) {

@@ -984,6 +984,155 @@ app.get('/api/news/status', (req, res) => {
   });
 });
 
+// Search news for specific game names
+app.get('/api/news/game/:gameName', async (req, res) => {
+  try {
+    const gameName = req.params.gameName;
+    if (!gameName || gameName.trim().length < 2) {
+      return res.json([]);
+    }
+
+    const trimmedName = gameName.trim();
+    const articles = [];
+
+    // ---- Build search variants for this game ----
+    const lowerName = trimmedName.toLowerCase();
+    // Remove version suffixes for flexible matching
+    const nameNoVersion = lowerName.replace(/\s+(v|vi|vii|viii|ix|x|xi|xii|[0-9]+)$/i, '').trim();
+    
+    // Build common abbreviations (e.g. "Grand Theft Auto V" -> "GTA V", "GTA 5", "GTAV", "GTA5")
+    const words = trimmedName.split(/\s+/);
+    const abbreviations = [];
+    if (words.length >= 2) {
+      // Acronym from first letters
+      const acronym = words.filter(w => !/^(v|vi|vii|viii|ix|x|xi|xii|[0-9]+|the|of|and|for|in|on|at|to)$/i.test(w))
+                           .map(w => w[0]).join('').toUpperCase();
+      if (acronym.length >= 2) {
+        // Version suffix
+        const lastWord = words[words.length - 1];
+        const isVersion = /^(v|vi|vii|viii|ix|x|xi|xii|[0-9]+)$/i.test(lastWord);
+        if (isVersion) {
+          const romanToNum = { 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8', 'IX': '9', 'X': '10', 'XI': '11', 'XII': '12',
+                               'II': '2', 'III': '3', 'IV': '4' };
+          const numVersion = romanToNum[lastWord.toUpperCase()] || lastWord;
+          const romanVersion = Object.entries(romanToNum).find(([, v]) => v === lastWord)?.[0] || lastWord;
+          abbreviations.push(`${acronym} ${lastWord}`, `${acronym}${lastWord}`, `${acronym} ${numVersion}`, `${acronym}${numVersion}`);
+          if (romanVersion !== lastWord) abbreviations.push(`${acronym} ${romanVersion}`, `${acronym}${romanVersion}`);
+        } else {
+          abbreviations.push(acronym);
+        }
+      }
+    }
+    // Also add the game's slug-like form (spaces -> no spaces)
+    const noSpaces = trimmedName.replace(/\s+/g, '');
+    if (noSpaces.toLowerCase() !== lowerName.replace(/\s+/g, '')) {
+      abbreviations.push(noSpaces);
+    }
+
+    // Unique, lowercase abbreviations
+    const uniqueAbbrevs = [...new Set(abbreviations.map(a => a.toLowerCase()))].filter(a => a.length >= 2 && a.toLowerCase() !== lowerName);
+
+    // ---- Matching function ----
+    const stopWords = ['the', 'and', 'for', 'with', 'from', 'that', 'this', 'game', 'edition', 'complete', 'ultimate', 'deluxe', 'remastered'];
+    const significantWords = lowerName.split(/\s+/).filter(w => w.length >= 4 && !stopWords.includes(w));
+
+    function textMentionsGame(text) {
+      if (!text) return false;
+      const lower = text.toLowerCase();
+      // Full game name
+      if (lower.includes(lowerName)) return true;
+      // Name without version
+      if (nameNoVersion.length >= 4 && lower.includes(nameNoVersion)) return true;
+      // Check abbreviations (e.g. GTA V, GTA5, GTAV)
+      for (const abbr of uniqueAbbrevs) {
+        const regex = new RegExp(`\\b${abbr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (regex.test(lower)) return true;
+      }
+      // ALL significant words appear
+      if (significantWords.length >= 2 && significantWords.every(w => lower.includes(w))) return true;
+      // Single significant word with word boundary
+      if (significantWords.length === 1 && significantWords[0].length >= 5) {
+        const regex = new RegExp(`\\b${significantWords[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+        if (regex.test(lower)) return true;
+      }
+      return false;
+    }
+
+    // ---- Build Reddit search queries ----
+    // Multiple search queries: full name + abbreviations
+    const searchQueries = [`"${trimmedName}"`];
+    if (nameNoVersion !== lowerName && nameNoVersion.length >= 4) {
+      searchQueries.push(`"${nameNoVersion}"`);
+    }
+    uniqueAbbrevs.slice(0, 3).forEach(abbr => searchQueries.push(abbr));
+
+    // ---- Search Reddit with multiple queries ----
+    const subreddits = ['gaming', 'Games', 'pcgaming', 'gamernews', 'PS5', 'XboxSeriesX', 'NintendoSwitch'];
+    
+    const redditPromises = [];
+    for (const q of searchQueries) {
+      const encodedQ = encodeURIComponent(q);
+      for (const sub of subreddits) {
+        redditPromises.push(
+          axios.get(
+            `https://www.reddit.com/r/${sub}/search.json?q=${encodedQ}&restrict_sr=1&sort=relevance&t=year&limit=15`,
+            { headers: { 'User-Agent': REDDIT_USER_AGENT }, timeout: 8000 }
+          ).catch(() => null)
+        );
+      }
+    }
+
+    const redditResults = await Promise.all(redditPromises);
+    
+    for (const response of redditResults) {
+      if (!response?.data?.data?.children) continue;
+      response.data.data.children.forEach(post => {
+        const data = post.data;
+        if (data.ups >= 2 && (textMentionsGame(data.title) || textMentionsGame(data.selftext))) {
+          articles.push({
+            source: 'reddit',
+            title: data.title,
+            description: data.selftext ? data.selftext.substring(0, 200) : '',
+            url: `https://www.reddit.com${data.permalink}`,
+            image: data.thumbnail && data.thumbnail.startsWith('http') ? data.thumbnail : 
+                   (data.preview?.images?.[0]?.source?.url?.replace(/&amp;/g, '&') || ''),
+            publishedAt: new Date(data.created_utc * 1000).toISOString(),
+            author: `r/${data.subreddit}`,
+            category: 'discussion',
+            gameName: gameName
+          });
+        }
+      });
+    }
+
+    // ---- Filter from cached general news ----
+    if (newsCache.allArticles.length > 0) {
+      newsCache.allArticles.forEach(article => {
+        if (textMentionsGame(article.title) || textMentionsGame(article.description)) {
+          articles.push({ ...article, gameName: gameName });
+        }
+      });
+    }
+
+    // ---- Deduplicate by title similarity ----
+    const seen = new Set();
+    const unique = articles.filter(a => {
+      const key = a.title.toLowerCase().trim().replace(/[^a-z0-9]/g, '').substring(0, 60);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // Sort by date
+    unique.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+    res.json(unique.slice(0, 30));
+  } catch (error) {
+    console.error('Erreur recherche news pour jeu:', error.message);
+    res.json([]);
+  }
+});
+
 // ==================== ROUTES GÉNÉRALES ====================
 
 app.get('/', (req, res) => {

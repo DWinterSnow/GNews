@@ -523,8 +523,8 @@ async function performSearch() {
         (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
     );
 
-    // Filter news
-    const filteredNews = (window.allNews || []).filter(news => 
+    // Filter news by text
+    let filteredNews = (window.allNews || []).filter(news => 
         (news.title && news.title.toLowerCase().includes(query.toLowerCase())) ||
         (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
     );
@@ -537,11 +537,10 @@ async function performSearch() {
 
         try {
             // Prefer canonical app-level API helper if present
-                    if (window.searchGamesFromAPI) {
-                        // The app-level helper shows results itself; call it with the current news
-                        await window.searchGamesFromAPI(query, filteredNews);
-                        return;
-                    }
+            if (window.searchGamesFromAPI) {
+                await window.searchGamesFromAPI(query, filteredNews);
+                return;
+            }
 
             // Otherwise call the server search endpoint directly
             const resp = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
@@ -549,6 +548,10 @@ async function performSearch() {
                 const data = await resp.json();
                 const apiGames = data && data.results ? data.results : (Array.isArray(data) ? data : []);
                 console.log('🌐 API fallback fetched', apiGames.length, 'games');
+                // Enrich news with game-specific results
+                if (typeof fetchGameSpecificNews === 'function' && apiGames.length > 0) {
+                    filteredNews = await fetchGameSpecificNews(apiGames, filteredNews);
+                }
                 if (window.showSearchResults) window.showSearchResults(apiGames, filteredNews, query, false);
                 return;
             } else {
@@ -561,6 +564,11 @@ async function performSearch() {
             if (window.showSearchResults) window.showSearchResults([], filteredNews, query, false);
             return;
         }
+    }
+
+    // Enrich news with game-specific results
+    if (typeof fetchGameSpecificNews === 'function' && filteredGames.length > 0) {
+        filteredNews = await fetchGameSpecificNews(filteredGames, filteredNews);
     }
 
     // Show local filtered results

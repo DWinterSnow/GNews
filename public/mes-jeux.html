@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mes Jeux - GNews</title>
+    <title>Mes Abonnements - GNews</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/mes-jeux.css">
 </head>
@@ -22,7 +22,7 @@
                         <li><a href="index.html" class="nav-link">Accueil</a></li>
                         <li><a href="actu.html" class="nav-link">Actualités</a></li>
                         <li><a href="jeux.html" class="nav-link">Jeux</a></li>
-                        <li><a href="mes-jeux.html" class="nav-link active">Mes Jeux</a></li>
+                        <li id="navMesAbonnements" style="display:none"><a href="mes-jeux.html" class="nav-link active">Mes Abonnements</a></li>
                     </ul>
                 </nav>
                 <!-- Mobile Nav Overlay -->
@@ -36,7 +36,7 @@
                         <li><a href="index.html" class="mobile-nav-link">Accueil</a></li>
                         <li><a href="actu.html" class="mobile-nav-link">Actualités</a></li>
                         <li><a href="jeux.html" class="mobile-nav-link">Jeux</a></li>
-                        <li><a href="mes-jeux.html" class="mobile-nav-link active">Mes Jeux</a></li>
+                        <li id="mobileNavMesAbonnements" style="display:none"><a href="mes-jeux.html" class="mobile-nav-link active">Mes Abonnements</a></li>
                     </ul>
                 </div>
                 <div class="header-actions">
@@ -51,16 +51,6 @@
                     </div>
                     <!-- User Icons (shown when logged in) -->
                     <div id="userIcons" class="user-icons hidden">
-                        <button class="icon-btn">
-                            <svg width="32" height="32" viewBox="0 0 50 50" fill="#fcc419">
-                                <path d="M25 0c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm-5.6 6.1C14.8 8 12 12.5 12 18c0 11-3.8 13.8-6.1 15.4-1 .7-1.9 1.4-1.9 2.6 0 4.2 6.3 6 21 6s21-1.8 21-6c0-1.2-.9-1.9-1.9-2.6C41.8 31.8 38 29 38 18c0-5.6-2.8-10-7.4-11.9C29.7 8.4 27.6 10 25 10s-4.8-1.6-5.6-3.9zM19 43.9v.1c0 3.3 2.7 6 6 6s6-2.7 6-6v-.1c-1.9.1-3.9.1-6 .1s-4.1 0-6-.1z"/>
-                            </svg>
-                        </button>
-                        <button class="icon-btn">
-                            <svg width="32" height="32" viewBox="0 0 50 50" fill="#fcc419">
-                                <path d="M22.5 11l2.9 7.1c1.2 3 3.6 5.3 6.5 6.5l7.1 2.9c1.3.5 1.3 2.4 0 2.9l-7.1 2.9c-3 1.2-5.3 3.6-6.5 6.5l-2.9 7.1c-.5 1.3-2.4 1.3-2.9 0l-2.9-7.1c-1.2-3-3.6-5.3-6.5-6.5l-7.1-2.9c-1.3-.5-1.3-2.4 0-2.9l7.1-2.9c3-1.2 5.3-3.6 6.5-6.5l2.9-7.1c.5-1.3 2.4-1.3 2.9 0zm17.4-8.3l.8 2.4c.7 1.9 2.2 3.4 4.1 4.1l2.4.8c.9.3.9 1.6 0 1.9l-2.4.8c-1.9.7-3.4 2.2-4.1 4.1l-.8 2.4c-.3.9-1.6.9-1.9 0l-.8-2.4c-.7-1.9-2.2-3.4-4.1-4.1l-2.4-.8c-.9-.3-.9-1.6 0-1.9l2.4-.8c1.9-.7 3.4-2.2 4.1-4.1l.8-2.4c.3-.9 1.6-.9 1.9 0z"/>
-                            </svg>
-                        </button>
                         <button class="icon-btn" id="profileBtn">
                             <img id="navProfilePic" class="nav-profile-pic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23fcc419'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%231a1a2e'/%3E%3Cellipse cx='50' cy='70' rx='25' ry='18' fill='%231a1a2e'/%3E%3C/svg%3E" alt="Profil">
                         </button>
@@ -104,38 +94,62 @@
 
     <!-- Main Content (shown when logged in) -->
     <main class="main-content" id="mainContent" style="display: none;">
-        <div class="container">
-            <h1 class="page-title">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                </svg>
-                Mes Jeux Suivis
-            </h1>
-
-            <div class="mes-jeux-layout">
-                <!-- Left: Followed Games -->
-                <div class="followed-games-panel">
-                    <h2 class="panel-title">Jeux que je suis</h2>
-                    <div id="followedGamesList" class="followed-games-list">
-                        <div class="loading-message">Chargement...</div>
-                    </div>
-                    <div id="noGamesMessage" class="no-games-message" style="display: none;">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5">
+        <div class="library-wrapper">
+            <!-- Left: Game Library Sidebar -->
+            <aside class="library-sidebar" id="librarySidebar">
+                <div class="library-sidebar-header">
+                    <h2 class="library-sidebar-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="2" y="6" width="20" height="12" rx="2"/>
                             <path d="M6 12h4m-2-2v4m8-3h.01m-4 0h.01"/>
                         </svg>
-                        <p>Vous ne suivez aucun jeu pour le moment.</p>
-                        <a href="jeux.html" class="btn-discover">Decouvrir des jeux</a>
-                    </div>
+                        Ma Bibliothèque
+                    </h2>
                 </div>
 
-                <!-- Right: Related News -->
-                <div class="related-news-panel">
-                    <h2 class="panel-title">Actualites liees</h2>
-                    <div id="relatedNewsList" class="related-news-list">
-                        <div class="no-news-message" id="noNewsMessage">
-                            <p>Suivez des jeux pour voir les actualites associees ici.</p>
-                        </div>
+                <!-- All Games Button -->
+                <button class="library-game-item active" id="libraryAllBtn" onclick="selectAllGames()">
+                    <div class="library-game-icon library-all-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                        </svg>
+                    </div>
+                    <span class="library-game-name">Tous les jeux</span>
+                </button>
+
+                <div class="library-divider"></div>
+
+                <div id="followedGamesList" class="library-games-list">
+                    <div class="loading-message">Chargement...</div>
+                </div>
+
+                <div id="noGamesMessage" class="no-games-message" style="display: none;">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5">
+                        <rect x="2" y="6" width="20" height="12" rx="2"/>
+                        <path d="M6 12h4m-2-2v4m8-3h.01m-4 0h.01"/>
+                    </svg>
+                    <p>Aucun jeu suivi</p>
+                    <a href="jeux.html" class="btn-discover">Découvrir</a>
+                </div>
+            </aside>
+
+            <!-- Right: News Content Area -->
+            <div class="library-content">
+                <div class="library-content-header">
+                    <h1 class="library-content-title" id="libraryContentTitle">
+                        Toutes les actualités
+                    </h1>
+                    <span class="library-content-count" id="libraryContentCount"></span>
+                </div>
+                <div id="relatedNewsList" class="related-news-list">
+                    <div class="no-news-message" id="noNewsMessage">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5">
+                            <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m2 13a2 2 0 0 1-2-2V7m2 13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2"/>
+                        </svg>
+                        <p>Suivez des jeux pour voir les actualités associées ici.</p>
                     </div>
                 </div>
             </div>

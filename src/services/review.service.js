@@ -38,11 +38,22 @@ class ReviewService {
       const reviews = await ReviewModel.getReviewsByGame(gameId);
       const stats = await ReviewModel.getAverageRating(gameId);
 
+      // Convert profile_picture_thumbnail Buffer to string for JSON serialization
+      const processedReviews = reviews.map(r => {
+        const review = { ...r };
+        if (review.profile_picture_thumbnail) {
+          if (Buffer.isBuffer(review.profile_picture_thumbnail)) {
+            review.profile_picture_thumbnail = review.profile_picture_thumbnail.toString('utf8');
+          }
+        }
+        return review;
+      });
+
       return {
-        count: reviews.length,
+        count: processedReviews.length,
         averageRating: stats.average_rating ? parseFloat(stats.average_rating).toFixed(1) : 0,
         totalReviews: stats.total_reviews || 0,
-        reviews
+        reviews: processedReviews
       };
     } catch (error) {
       throw error;

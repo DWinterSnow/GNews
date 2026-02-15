@@ -17,7 +17,7 @@ class ReviewModel {
   static async getReviewsByGame(gameId) {
     try {
       const query = `
-        SELECT r.id, r.user_id, r.comment_text, r.rating, r.created_at, u.username
+        SELECT r.id, r.user_id, r.comment_text, r.rating, r.created_at, u.username, u.profile_picture_thumbnail
         FROM reviews r
         JOIN users u ON r.user_id = u.id
         WHERE r.game_id = ?

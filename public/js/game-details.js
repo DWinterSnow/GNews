@@ -6,7 +6,19 @@ let currentMediaIndex = 0;
 let gameIsFavorite = false;
 
 // Toggle review form visibility
-function toggleReviewForm() {
+async function toggleReviewForm() {
+    // Check if user is logged in
+    const auth = await checkAuthStatus();
+    
+    if (!auth.isLoggedIn) {
+        showNotification('Vous devez être connecté pour publier un avis', 'warning');
+        // Redirect to login page after 1.5 seconds
+        setTimeout(() => {
+            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+        }, 1500);
+        return;
+    }
+    
     const container = document.getElementById('reviewFormContainer');
     const btn = document.getElementById('toggleReviewBtn');
     container.style.display = '';
@@ -175,7 +187,7 @@ function setupEventListeners() {
 }
 
 // Fonction de recherche
-function performSearch() {
+async function performSearch() {
     const query = document.getElementById('searchInput')?.value;
     if (!query || !query.trim()) {
         return;
@@ -183,38 +195,50 @@ function performSearch() {
     
     console.log('🔍 Recherche globale:', query);
     
-    // Collect all games from all sources
-    let searchGames = [];
-    if (window.allGames) {
-        searchGames = searchGames.concat(window.allGames.trending || []);
-        searchGames = searchGames.concat(window.allGames.upcoming || []);
-        searchGames = searchGames.concat(window.allGames.recent || []);
+    // Show loading state
+    if (window.showSearchResults) {
+        window.showSearchResults([], [], query, true);
     }
     
-    // Remove duplicates by ID
-    const uniqueGamesMap = new Map();
-    searchGames.forEach(game => {
-        if (game.id && !uniqueGamesMap.has(game.id)) {
-            uniqueGamesMap.set(game.id, game);
+    try {
+        // Search games via API and news in parallel
+        const [gamesResponse, newsResponse] = await Promise.all([
+            fetch(`/api/games/search?query=${encodeURIComponent(query.trim())}`).catch(() => null),
+            fetch(`/api/news`).catch(() => null)
+        ]);
+        
+        // Parse games
+        let games = [];
+        if (gamesResponse && gamesResponse.ok) {
+            const data = await gamesResponse.json();
+            games = data && data.results ? data.results : (Array.isArray(data) ? data : []);
         }
-    });
-    searchGames = Array.from(uniqueGamesMap.values());
-    
-    // Filter games
-    const filteredGames = searchGames.filter(game => 
-        game.name.toLowerCase().includes(query.toLowerCase()) ||
-        (game.genres && game.genres.some(g => g.name.toLowerCase().includes(query.toLowerCase())))
-    );
-    
-    // Filter news
-    const filteredNews = (window.allNews || []).filter(news => 
-        news.title.toLowerCase().includes(query.toLowerCase()) ||
-        (news.description && news.description.toLowerCase().includes(query.toLowerCase()))
-    );
-    
-    // Show search results popup (games priority)
-    if (window.showSearchResults) {
-        window.showSearchResults(filteredGames, filteredNews, query);
+        
+        // Parse and filter news by text
+        let filteredNews = [];
+        if (newsResponse && newsResponse.ok) {
+            const allNews = await newsResponse.json();
+            const lowerQuery = query.trim().toLowerCase();
+            filteredNews = (allNews || []).filter(news => 
+                (news.title && news.title.toLowerCase().includes(lowerQuery)) ||
+                (news.description && news.description.toLowerCase().includes(lowerQuery))
+            );
+        }
+        
+        // Enrich news with game-specific results from top game matches
+        if (typeof fetchGameSpecificNews === 'function' && games.length > 0) {
+            filteredNews = await fetchGameSpecificNews(games, filteredNews);
+        }
+        
+        // Show results
+        if (window.showSearchResults) {
+            window.showSearchResults(games, filteredNews, query);
+        }
+    } catch (error) {
+        console.error('❌ Erreur recherche:', error);
+        if (window.showSearchResults) {
+            window.showSearchResults([], [], query);
+        }
     }
 }
 
@@ -236,23 +260,70 @@ async function loadGameDetails(gameId) {
         await loadGameScreenshots(gameId);
         displayGameDetails(game);
         
-        // Charger les données sauvegardées
-        currentUserReview = loadUserReview(gameId);
-        gameComments = loadGameComments(gameId);
+        // Check auth status first
+        const auth = await checkAuthStatus();
+        
+        // Charger les votes locaux
         userVotes = loadUserVotes(gameId);
         
-        // Si aucun commentaire n'existe, générer des commentaires fictifs
-        if (gameComments.length === 0) {
-            gameComments = generateMockComments();
-            saveGameComments(gameId, gameComments);
+        // Fetch real reviews from the server API
+        currentUserReview = null;
+        gameComments = [];
+        
+        try {
+            const reviewsResult = await getGameReviews(gameId);
+            if (reviewsResult.success && reviewsResult.reviews && reviewsResult.reviews.length > 0) {
+                const currentUserId = auth.isLoggedIn ? auth.user.id : null;
+                
+                reviewsResult.reviews.forEach(r => {
+                    const isOwn = currentUserId && r.user_id === currentUserId;
+                    const reviewObj = {
+                        id: r.id,
+                        dbId: r.id, // keep the DB id for API calls
+                        userId: r.user_id,
+                        userName: r.username || 'Utilisateur',
+                        userAvatar: r.profile_picture_thumbnail || null,
+                        rating: r.rating,
+                        ownGame: false,
+                        recommend: r.rating >= 4,
+                        comment: r.comment_text,
+                        date: r.created_at,
+                        likes: 0,
+                        dislikes: 0,
+                        userVote: null,
+                        isCurrentUser: isOwn
+                    };
+                    
+                    if (isOwn) {
+                        currentUserReview = reviewObj;
+                    } else {
+                        gameComments.push(reviewObj);
+                    }
+                });
+                
+                // Update the stats display with real data
+                if (reviewsResult.averageRating) {
+                    updateReviewStats(reviewsResult.averageRating, reviewsResult.totalReviews, reviewsResult.reviews);
+                }
+            }
+        } catch (e) {
+            console.warn('Could not fetch reviews from API:', e);
         }
         
-        // Initialiser la section commentaires
+        // If no real reviews, load from localStorage (mock fallback)
+        if (gameComments.length === 0 && !currentUserReview) {
+            gameComments = loadGameComments(gameId);
+            if (gameComments.length === 0) {
+                gameComments = generateMockComments();
+                saveGameComments(gameId, gameComments);
+            }
+        }
+        
+        // Initialize comments section
         initCommentsSection();
 
-        // Check auth & favorite status
+        // Update auth UI and check favorites
         try {
-            const auth = await checkAuthStatus();
             if (auth.isLoggedIn) {
                 const authButtons = document.getElementById('authButtons');
                 const userIcons = document.getElementById('userIcons');
@@ -272,6 +343,7 @@ async function loadGameDetails(gameId) {
             }
         } catch (e) {
             // Auth not available, continue without
+            console.warn('Auth check error:', e);
         }
         
         hideLoading();
@@ -790,6 +862,9 @@ function toggleFavorite() {
     checkAuthStatus().then(async (auth) => {
         if (!auth.isLoggedIn) {
             showNotification('Connectez-vous pour ajouter aux favoris', 'warning');
+            setTimeout(() => {
+                window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+            }, 1500);
             return;
         }
 
@@ -1099,7 +1174,11 @@ async function submitReview() {
     // Check auth
     const auth = await checkAuthStatus();
     if (!auth.isLoggedIn) {
-        showNotification('Connectez-vous pour laisser un avis', 'warning');
+        showNotification('Vous devez être connecté pour publier un avis', 'warning');
+        // Redirect to login page after 1.5 seconds
+        setTimeout(() => {
+            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+        }, 1500);
         return;
     }
 
@@ -1125,6 +1204,7 @@ async function submitReview() {
         // Create local review object for display
         const review = {
             id: 'user_' + Date.now(),
+            userId: auth.user.id,
             userName: auth.user.username || 'Vous',
             userAvatar: '',
             rating: reviewData.rating,
@@ -1280,7 +1360,23 @@ function updateEditStarsDisplay(rating) {
 }
 
 // Soumettre la modification
-function submitEditReview() {
+async function submitEditReview() {
+    // Check auth
+    const auth = await checkAuthStatus();
+    if (!auth.isLoggedIn) {
+        showNotification('Vous devez être connecté pour modifier votre avis', 'warning');
+        setTimeout(() => {
+            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+        }, 1500);
+        return;
+    }
+    
+    // Verify user owns this review
+    if (!currentUserReview || !currentUserReview.userId || currentUserReview.userId !== auth.user.id) {
+        showNotification('Vous ne pouvez modifier que votre propre avis', 'warning');
+        return;
+    }
+    
     const commentTextarea = document.getElementById('editReviewComment');
     const comment = commentTextarea ? commentTextarea.value.trim() : '';
 
@@ -1316,8 +1412,15 @@ function cancelEdit() {
 }
 
 // Modifier l'avis
-function editReview() {
+async function editReview() {
     if (!currentUserReview) return;
+
+    // Check if current user owns this review
+    const auth = await checkAuthStatus();
+    if (!auth.isLoggedIn || !currentUserReview.userId || currentUserReview.userId !== auth.user.id) {
+        showNotification('Vous ne pouvez modifier que votre propre avis', 'warning');
+        return;
+    }
 
     // Afficher le formulaire de modification
     const editForm = document.getElementById('editFormContainer');
@@ -1417,12 +1520,63 @@ function generateRandomComment(rating) {
     }
 }
 
+// Helper to get a consistent avatar emoji for a username
+function getAvatarForUser(username) {
+    const avatars = ['😎', '🎮', '🔥', '⚡', '🌟', '💜', '🎯', '🚀', '👾', '🎨'];
+    if (!username) return '👤';
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return avatars[Math.abs(hash) % avatars.length];
+}
+
+// Render avatar HTML - show profile picture if available, otherwise emoji fallback
+function renderAvatar(avatarData, userName) {
+    if (avatarData && typeof avatarData === 'string' && avatarData.length > 10) {
+        // data URI from DB (data:image/...) or raw base64
+        const src = avatarData.startsWith('data:') ? avatarData : `data:image/jpeg;base64,${avatarData}`;
+        return `<img src="${src}" alt="${escapeHtml(userName || '')}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+    }
+    // Fallback to emoji
+    return getAvatarForUser(userName);
+}
+
+// Update review stats display with real data
+function updateReviewStats(averageRating, totalReviews, reviews) {
+    const ratingNumber = document.querySelector('.rating-number');
+    const ratingStarsDisplay = document.querySelector('.rating-stars-display');
+    const ratingCount = document.querySelector('.rating-count');
+    
+    if (ratingNumber) ratingNumber.textContent = averageRating;
+    if (ratingStarsDisplay) ratingStarsDisplay.textContent = getStarDisplay(Math.round(parseFloat(averageRating)));
+    if (ratingCount) ratingCount.textContent = `Basé sur ${totalReviews} avis`;
+    
+    // Update rating breakdown bars
+    if (reviews && reviews.length > 0) {
+        const counts = [0, 0, 0, 0, 0];
+        reviews.forEach(r => {
+            if (r.rating >= 1 && r.rating <= 5) counts[r.rating - 1]++;
+        });
+        const total = reviews.length;
+        const bars = document.querySelectorAll('.rating-bar-item');
+        bars.forEach((bar, index) => {
+            const starIndex = 5 - index; // 5★ first, 1★ last
+            const pct = total > 0 ? Math.round((counts[starIndex - 1] / total) * 100) : 0;
+            const fill = bar.querySelector('.rating-bar-fill');
+            const span = bar.querySelectorAll('span');
+            if (fill) fill.style.width = pct + '%';
+            if (span.length >= 2) span[1].textContent = pct + '%';
+        });
+    }
+}
+
 // Afficher les commentaires
 function displayComments(comments) {
     const container = document.getElementById('commentsList');
     if (!container) return;
 
-    // Construire le HTML de l'avis utilisateur s'il existe
+    // Construire le HTML de l'avis utilisateur s'il existe (with edit button)
     let userReviewHtml = '';
     if (currentUserReview) {
         const r = currentUserReview;
@@ -1430,9 +1584,9 @@ function displayComments(comments) {
         <div class="comment-card user-own-review" data-comment-id="${r.id}">
             <div class="comment-header">
                 <div class="comment-user">
-                    <div class="user-avatar">${r.userAvatar}</div>
+                    <div class="user-avatar">${renderAvatar(r.userAvatar, r.userName)}</div>
                     <div class="user-info">
-                        <div class="user-name">${r.userName} <span class="badge-own" style="margin-left: 8px;">Votre avis</span></div>
+                        <div class="user-name">${escapeHtml(r.userName)} <span class="badge-own" style="margin-left: 8px;">Votre avis</span></div>
                         <div class="comment-meta">
                             <span>${getStarDisplay(r.rating)}</span>
                             ${r.ownGame ? '<span class="badge-own">✓ Possède le jeu</span>' : ''}
@@ -1471,13 +1625,14 @@ function displayComments(comments) {
         return;
     }
     
+    // Render other users' comments (NO edit button for them)
     const commentsHtml = comments.map(comment => `
         <div class="comment-card" data-comment-id="${comment.id}">
             <div class="comment-header">
                 <div class="comment-user">
-                    <div class="user-avatar">${comment.userAvatar}</div>
+                    <div class="user-avatar">${renderAvatar(comment.userAvatar, comment.userName)}</div>
                     <div class="user-info">
-                        <div class="user-name">${comment.userName}</div>
+                        <div class="user-name">${escapeHtml(comment.userName)}</div>
                         <div class="comment-meta">
                             <span>${getStarDisplay(comment.rating)}</span>
                             ${comment.ownGame ? '<span class="badge-own">✓ Possède le jeu</span>' : ''}
@@ -1491,11 +1646,11 @@ function displayComments(comments) {
             <div class="comment-actions">
                 <button class="vote-btn ${userVotes[comment.id] === 'like' ? 'active' : ''}" 
                         onclick="voteComment('${comment.id}', 'like')">
-                    👍 <span>${comment.likes}</span>
+                    👍 <span>${comment.likes || 0}</span>
                 </button>
                 <button class="vote-btn ${userVotes[comment.id] === 'dislike' ? 'active' : ''}" 
                         onclick="voteComment('${comment.id}', 'dislike')">
-                    👎 <span>${comment.dislikes}</span>
+                    👎 <span>${comment.dislikes || 0}</span>
                 </button>
             </div>
         </div>
@@ -1505,31 +1660,46 @@ function displayComments(comments) {
 }
 
 // Voter sur un commentaire
-function voteComment(commentId, voteType) {
-    const comment = gameComments.find(c => c.id === commentId);
+async function voteComment(commentId, voteType) {
+    // Check auth
+    const auth = await checkAuthStatus();
+    if (!auth.isLoggedIn) {
+        showNotification('Vous devez être connecté pour voter', 'warning');
+        setTimeout(() => {
+            window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+        }, 1500);
+        return;
+    }
+    
+    // Find comment in gameComments or in currentUserReview (compare with == for string/int match)
+    let comment = gameComments.find(c => String(c.id) === String(commentId));
+    if (!comment && currentUserReview && String(currentUserReview.id) === String(commentId)) {
+        comment = currentUserReview;
+    }
     if (!comment) return;
     
-    const currentVote = userVotes[commentId];
+    const voteKey = String(commentId);
+    const currentVote = userVotes[voteKey];
     
     // Retirer le vote actuel
     if (currentVote === 'like') {
-        comment.likes--;
+        comment.likes = Math.max(0, (comment.likes || 0) - 1);
     } else if (currentVote === 'dislike') {
-        comment.dislikes--;
+        comment.dislikes = Math.max(0, (comment.dislikes || 0) - 1);
     }
     
     // Ajouter le nouveau vote si différent
     if (currentVote !== voteType) {
         if (voteType === 'like') {
-            comment.likes++;
-            userVotes[commentId] = 'like';
+            comment.likes = (comment.likes || 0) + 1;
+            userVotes[voteKey] = 'like';
         } else {
-            comment.dislikes++;
-            userVotes[commentId] = 'dislike';
+            comment.dislikes = (comment.dislikes || 0) + 1;
+            userVotes[voteKey] = 'dislike';
         }
     } else {
         // Retirer le vote si on clique à nouveau
-        delete userVotes[commentId];
+        delete userVotes[voteKey];
     }
     
     // Sauvegarder
