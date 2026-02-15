@@ -20,7 +20,7 @@
                 <nav class="nav">
                     <ul>
                         <li><a href="index.html" class="nav-link">Accueil</a></li>
-                        <li><a href="actu.html" class="nav-link">Actualites</a></li>
+                        <li><a href="actu.html" class="nav-link">Actualités</a></li>
                         <li><a href="jeux.html" class="nav-link">Jeux</a></li>
                         <li><a href="mes-jeux.html" class="nav-link active">Mes Jeux</a></li>
                     </ul>
@@ -34,7 +34,7 @@
                     </div>
                     <ul class="mobile-nav-links">
                         <li><a href="index.html" class="mobile-nav-link">Accueil</a></li>
-                        <li><a href="actu.html" class="mobile-nav-link">Actualites</a></li>
+                        <li><a href="actu.html" class="mobile-nav-link">Actualités</a></li>
                         <li><a href="jeux.html" class="mobile-nav-link">Jeux</a></li>
                         <li><a href="mes-jeux.html" class="mobile-nav-link active">Mes Jeux</a></li>
                     </ul>
@@ -42,7 +42,7 @@
                 <div class="header-actions">
                     <div class="search-box">
                         <input type="search" placeholder="Quel jeu vous cherchez ?" id="searchInput">
-                        <button class="search-btn" onclick="performSearch()">Rechercher</button>
+                        <button class="search-btn" onclick="performSearch()">🔍</button>
                     </div>
                     <!-- Auth Buttons (shown when not logged in) -->
                     <div id="authButtons" class="auth-buttons">
@@ -51,18 +51,37 @@
                     </div>
                     <!-- User Icons (shown when logged in) -->
                     <div id="userIcons" class="user-icons hidden">
-                        <button class="icon-btn" onclick="window.location.href='login.html'">
+                        <button class="icon-btn">
                             <svg width="32" height="32" viewBox="0 0 50 50" fill="#fcc419">
                                 <path d="M25 0c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zm-5.6 6.1C14.8 8 12 12.5 12 18c0 11-3.8 13.8-6.1 15.4-1 .7-1.9 1.4-1.9 2.6 0 4.2 6.3 6 21 6s21-1.8 21-6c0-1.2-.9-1.9-1.9-2.6C41.8 31.8 38 29 38 18c0-5.6-2.8-10-7.4-11.9C29.7 8.4 27.6 10 25 10s-4.8-1.6-5.6-3.9zM19 43.9v.1c0 3.3 2.7 6 6 6s6-2.7 6-6v-.1c-1.9.1-3.9.1-6 .1s-4.1 0-6-.1z"/>
                             </svg>
                         </button>
-                        <button class="icon-btn" id="logoutBtn" title="Deconnexion">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fcc419" stroke-width="2">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                                <polyline points="16 17 21 12 16 7"/>
-                                <line x1="21" y1="12" x2="9" y2="12"/>
+                        <button class="icon-btn">
+                            <svg width="32" height="32" viewBox="0 0 50 50" fill="#fcc419">
+                                <path d="M22.5 11l2.9 7.1c1.2 3 3.6 5.3 6.5 6.5l7.1 2.9c1.3.5 1.3 2.4 0 2.9l-7.1 2.9c-3 1.2-5.3 3.6-6.5 6.5l-2.9 7.1c-.5 1.3-2.4 1.3-2.9 0l-2.9-7.1c-1.2-3-3.6-5.3-6.5-6.5l-7.1-2.9c-1.3-.5-1.3-2.4 0-2.9l7.1-2.9c3-1.2 5.3-3.6 6.5-6.5l2.9-7.1c.5-1.3 2.4-1.3 2.9 0zm17.4-8.3l.8 2.4c.7 1.9 2.2 3.4 4.1 4.1l2.4.8c.9.3.9 1.6 0 1.9l-2.4.8c-1.9.7-3.4 2.2-4.1 4.1l-.8 2.4c-.3.9-1.6.9-1.9 0l-.8-2.4c-.7-1.9-2.2-3.4-4.1-4.1l-2.4-.8c-.9-.3-.9-1.6 0-1.9l2.4-.8c1.9-.7 3.4-2.2 4.1-4.1l.8-2.4c.3-.9 1.6-.9 1.9 0z"/>
                             </svg>
                         </button>
+                        <button class="icon-btn" id="profileBtn">
+                            <img id="navProfilePic" class="nav-profile-pic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23fcc419'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%231a1a2e'/%3E%3Cellipse cx='50' cy='70' rx='25' ry='18' fill='%231a1a2e'/%3E%3C/svg%3E" alt="Profil">
+                        </button>
+                        <!-- Profile Dropdown Menu -->
+                        <div id="profileDropdown" class="profile-dropdown hidden">
+                            <div class="profile-dropdown-header">
+                                <img id="dropdownProfilePic" class="dropdown-profile-pic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23fcc419'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%231a1a2e'/%3E%3Cellipse cx='50' cy='70' rx='25' ry='18' fill='%231a1a2e'/%3E%3C/svg%3E" alt="Profil">
+                                <div class="profile-dropdown-user">
+                                    <p id="dropdownUsername" class="dropdown-username">Utilisateur</p>
+                                    <p class="dropdown-email" id="dropdownEmail">email@example.com</p>
+                                </div>
+                            </div>
+                            <div class="profile-dropdown-divider"></div>
+                            <button id="editProfileBtn" class="profile-dropdown-item">
+                                <span>⚙️</span> Paramètres du profil
+                            </button>
+                            <div class="profile-dropdown-divider"></div>
+                            <button id="logoutBtn" class="profile-dropdown-item logout-btn">
+                                <span>🚪</span> Se déconnecter
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -123,6 +142,48 @@
         </div>
     </main>
 
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Paramètres du profil</h2>
+                <button id="closeEditProfile" class="modal-close">&times;</button>
+            </div>
+            <form id="editProfileForm" class="modal-body">
+                <div class="form-group">
+                    <label>Nom d'utilisateur</label>
+                    <input type="text" id="editUsername" placeholder="Votre nom d'utilisateur" required>
+                </div>
+                <div class="form-group">
+                    <label>Photo de profil</label>
+                    <input type="file" id="editProfilePic" accept="image/*">
+                    <small>Formats acceptés: PNG, JPG, GIF (Max 5MB)</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="closeEditProfileBtn" class="btn-secondary">Annuler</button>
+                    <button type="submit" class="btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirmation</h2>
+                <button id="closeLogoutModal" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir vous déconnecter ?</p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelLogout" class="btn-secondary">Annuler</button>
+                <button id="confirmLogout" class="btn-primary">Se déconnecter</button>
+            </div>
+        </div>
+    </div>
+
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
@@ -146,6 +207,7 @@
 
     <script src="js/search-utils.js"></script>
     <script src="js/auth-api.js"></script>
+    <script src="js/profile-menu.js"></script>
     <script src="js/mes-jeux.js"></script>
 </body>
 </html>

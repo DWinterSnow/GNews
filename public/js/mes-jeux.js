@@ -45,6 +45,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Hamburger menu
   initMobileNav();
+
+  // Search input - Enter key
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        performSearch();
+      }
+    });
+  }
 });
 
 // ==================== LOAD FOLLOWED GAMES ====================
@@ -259,10 +269,60 @@ function findMatchedGame(article, gameTitles) {
 
 // ==================== SEARCH ====================
 
-function performSearch() {
+async function performSearch() {
   const query = document.getElementById('searchInput')?.value?.trim();
-  if (query) {
-    window.location.href = `jeux.html?search=${encodeURIComponent(query)}`;
+  if (!query) return;
+
+  console.log('🔍 Recherche:', query);
+
+  // Show loading message
+  showSearchResults([], [], query, true);
+
+  try {
+    // Search in followed games locally
+    const followedSearchGames = followedGames
+      .filter(game => {
+        const gameTitle = (game.game_title || '').toLowerCase();
+        return gameTitle.includes(query.toLowerCase());
+      })
+      .map(game => ({
+        id: game.game_id,
+        name: game.game_title || 'Jeu #' + game.game_id,
+        genres: [],
+        background_image: '',
+        rating: 0,
+        released: ''
+      }));
+
+    // Search in all news
+    const searchNews = allNews.filter(article => {
+      const title = (article.title || '').toLowerCase();
+      const desc = (article.description || '').toLowerCase();
+      return title.includes(query.toLowerCase()) || desc.includes(query.toLowerCase());
+    });
+
+    // If we have results from followed games, show them
+    if (followedSearchGames.length > 0) {
+      showSearchResults(followedSearchGames, searchNews, query, false);
+      return;
+    }
+
+    // Otherwise, search the API for all games
+    console.log('🌐 Searching API for games:', query);
+    const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      const apiGames = data && data.results ? data.results : (Array.isArray(data) ? data : []);
+      console.log(`📊 API trouvé ${apiGames.length} jeux`);
+      showSearchResults(apiGames, searchNews, query, false);
+    } else {
+      console.warn('⚠️ API fallback failed');
+      showSearchResults([], searchNews, query, false);
+    }
+  } catch (error) {
+    console.error('❌ Erreur recherche:', error);
+    showSearchResults([], [], query, false);
   }
 }
 

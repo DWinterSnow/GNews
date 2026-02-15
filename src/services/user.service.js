@@ -11,16 +11,22 @@ class UserService {
         throw new Error('All fields are required');
       }
 
+      // Validate username format: only alphanumeric and underscore
+      const usernameRegex = /^[a-zA-Z0-9_]+$/;
+      if (!usernameRegex.test(username)) {
+        throw new Error('Username can only contain letters, numbers and underscores (_)');
+      }
+
+      if (username.length < 3) {
+        throw new Error('Username must be at least 3 characters long');
+      }
+
       if (password !== confirmPassword) {
         throw new Error('Passwords do not match');
       }
 
       if (password.length < 6) {
         throw new Error('Password must be at least 6 characters long');
-      }
-
-      if (username.length < 3) {
-        throw new Error('Username must be at least 3 characters long');
       }
 
       // Check if user already exists
@@ -203,6 +209,120 @@ class UserService {
       throw error;
     }
   }
-}
+  // Verify current password
+  static async verifyPassword(userId, currentPassword) {
+    try {
+      if (!userId || !currentPassword) {
+        throw new Error('User ID and password are required');
+      }
+
+      // Get user with password hash
+      const pool = require('../config/db');
+      const query = 'SELECT password FROM users WHERE id = ?';
+      const [rows] = await pool.execute(query, [userId]);
+      const user = rows[0];
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Verify current password
+      const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isPasswordValid) {
+        throw new Error('Current password is incorrect');
+      }
+
+      return {
+        success: true,
+        message: 'Password verified successfully'
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Update user profile
+  static async updateProfile(userId, username, age, country, password, profilePictureData, currentPassword = null) {
+    try {
+      // Get current user with password
+      const userQuery = await UserModel.findById(userId);
+      if (!userQuery) {
+        throw new Error('User not found');
+      }
+
+      // If password change is requested, verify current password
+      if (password && currentPassword) {
+        // Get full user with password hash
+        const pool = require('../config/db');
+        const query = 'SELECT password FROM users WHERE id = ?';
+        const [rows] = await pool.execute(query, [userId]);
+        const user = rows[0];
+
+        if (!user) {
+          throw new Error('User not found');
+        }
+
+        // Verify current password
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isPasswordValid) {
+          throw new Error('Current password is incorrect');
+        }
+      }
+
+      // Validate username format: only alphanumeric and underscore
+      if (username) {
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (!usernameRegex.test(username)) {
+          throw new Error('Username can only contain letters, numbers and underscores (_)');
+        }
+
+        if (username.length < 3) {
+          throw new Error('Username must be at least 3 characters long');
+        }
+
+        // Check if username already taken (by another user)
+        if (username !== userQuery.username) {
+          const existingUsername = await UserModel.findByUsername(username);
+          if (existingUsername) {
+            throw new Error('Username already taken');
+          }
+        }
+      }
+
+      // Validate age: optional but must be valid if provided
+      if (age && (age < 13 || age > 120)) {
+        throw new Error('Age must be between 13 and 120');
+      }
+
+      // Update password if provided
+      if (password) {
+        if (password.length < 6) {
+          throw new Error('Password must be at least 6 characters long');
+        }
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await UserModel.updatePassword(userId, hashedPassword);
+      }
+
+      // Update profile information
+      await UserModel.updateProfile(
+        userId,
+        username || userQuery.username,
+        age || null,
+        country || null,
+        profilePictureData || null
+      );
+
+      // Get updated user data
+      const updatedUser = await UserModel.findById(userId);
+
+      return {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        message: 'Profile updated successfully'
+      };
+    } catch (error) {
+      throw error;
+    }
+  }}
 
 module.exports = UserService;

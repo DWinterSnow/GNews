@@ -62,11 +62,17 @@ class UserController {
   static async checkAuthStatus(req, res) {
     try {
       if (req.session && req.session.userId) {
+        // Get complete user data from database
+        const user = await UserService.getUserProfile(req.session.userId);
         res.json({
           isLoggedIn: true,
           user: {
-            id: req.session.userId,
-            username: req.session.username
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            age: user.age,
+            country: user.country,
+            profilePictureName: user.profile_picture_name
           }
         });
       } else {
@@ -230,6 +236,76 @@ class UserController {
       res.json({
         success: true,
         message: result.message
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+
+  // Verify current password
+  static async verifyPassword(req, res) {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Not authenticated'
+        });
+      }
+
+      const { currentPassword } = req.body;
+
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required'
+        });
+      }
+
+      const result = await UserService.verifyPassword(userId, currentPassword);
+
+      res.json({
+        success: true,
+        message: 'Password verified successfully'
+      });
+    } catch (error) {
+      res.status(401).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+
+  // Update user profile
+  static async updateProfile(req, res) {
+    try {
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Not authenticated'
+        });
+      }
+
+      const { username, age, country, password, currentPassword, profilePictureData } = req.body;
+
+      const result = await UserService.updateProfile(
+        userId,
+        username,
+        age,
+        country,
+        password,
+        profilePictureData,
+        currentPassword
+      );
+
+      res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: result
       });
     } catch (error) {
       res.status(400).json({

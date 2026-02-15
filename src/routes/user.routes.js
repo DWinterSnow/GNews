@@ -21,6 +21,8 @@ router.get('/profile', authMiddleware, UserController.getCurrentUser);
 router.get('/profile/:id', UserController.getUserProfile);
 router.get('/profile-picture/:id', UserController.getProfilePicture);
 router.post('/upload-profile-picture', authMiddleware, UserController.uploadProfilePicture);
+router.post('/verify-password', authMiddleware, UserController.verifyPassword);
+router.post('/update-profile', authMiddleware, UserController.updateProfile);
 
 // ============ FAVORITE ROUTES ============
 

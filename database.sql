@@ -1,5 +1,6 @@
 -- =============================================
--- GNews Database - Schema complet
+-- GNews Database - Schema Complet
+-- FUSION DE TOUS LES FICHIERS SQL
 -- Executer dans MySQL Workbench ou en CLI
 -- =============================================
 
@@ -7,7 +8,7 @@ CREATE DATABASE IF NOT EXISTS gnews_db;
 USE gnews_db;
 
 -- ============================================
--- Table des utilisateurs
+-- Table des utilisateurs (avec photos de profil)
 -- ============================================
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -56,3 +57,33 @@ CREATE TABLE IF NOT EXISTS reviews (
   INDEX idx_game_id (game_id),
   INDEX idx_created_at (created_at)
 );
+
+-- ============================================
+-- [MERGED from add_profile_picture.sql]
+-- Profile Picture Support
+-- ============================================
+-- ALTER TABLE gnews_db.users ADD COLUMN profile_picture LONGBLOB;
+-- ALTER TABLE gnews_db.users ADD COLUMN profile_picture_name VARCHAR(255);
+-- NOTE: These columns are already included in the CREATE TABLE above
+
+-- ============================================
+-- [MERGED from add_thumbnail.sql]
+-- Profile Picture Thumbnail Support
+-- ============================================
+-- ALTER TABLE gnews_db.users ADD COLUMN profile_picture_thumbnail LONGBLOB;
+-- NOTE: This column is already included in the CREATE TABLE above
+
+-- ============================================
+-- DATABASE VERIFICATION QUERIES
+-- ============================================
+-- Verify the tables were created:
+-- SHOW TABLES;
+-- 
+-- Verify the users table columns:
+-- DESCRIBE users;
+--
+-- Verify the user_favorites table:
+-- DESCRIBE user_favorites;
+--
+-- Verify the reviews table:
+-- DESCRIBE reviews;

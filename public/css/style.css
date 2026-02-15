@@ -285,6 +285,7 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+    position: relative;
 }
 
 .search-box {
@@ -385,6 +386,7 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+    position: relative;
 }
 
 /* Nav Profile Picture */
@@ -1877,4 +1879,280 @@ a.icon-btn {
         padding: 10px 18px;
         font-size: 13px;
     }
+}
+
+/* ==================== PROFILE DROPDOWN MENU ==================== */
+.profile-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 10px;
+    background: linear-gradient(135deg, rgba(10, 30, 100, 0.95), rgba(16, 21, 157, 0.95));
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(9, 21, 100, 0.8), 0 0 30px rgba(37, 244, 238, 0.2);
+    min-width: 280px;
+    z-index: 2001;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+    animation: slideDown 0.3s ease;
+}
+
+.profile-dropdown.hidden {
+    display: none;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.profile-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid rgba(37, 244, 238, 0.2);
+    background: rgba(37, 244, 238, 0.05);
+}
+
+.dropdown-profile-pic {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--cyan);
+}
+
+.profile-dropdown-user {
+    flex: 1;
+}
+
+.dropdown-username {
+    margin: 0;
+    color: var(--white);
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.dropdown-email {
+    margin: 3px 0 0 0;
+    color: var(--cyan);
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.profile-dropdown-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(37, 244, 238, 0.3), transparent);
+    margin: 0;
+}
+
+.profile-dropdown-item {
+    width: 100%;
+    padding: 14px 16px;
+    background: transparent;
+    border: none;
+    color: var(--white);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+}
+
+.profile-dropdown-item:hover {
+    background: rgba(37, 244, 238, 0.15);
+    padding-left: 20px;
+    color: var(--cyan);
+}
+
+.profile-dropdown-item.logout-btn:hover {
+    background: rgba(244, 67, 54, 0.15);
+    color: #FF6B6B;
+}
+
+.profile-dropdown-item span {
+    font-size: 16px;
+}
+
+/* ==================== MODAL STYLES ==================== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    padding: 20px;
+    backdrop-filter: blur(5px);
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: linear-gradient(135deg, rgba(10, 30, 100, 0.98), rgba(16, 21, 157, 0.98));
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 20px;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(9, 21, 100, 0.8), 0 0 60px rgba(37, 244, 238, 0.2);
+    animation: modalPopIn 0.4s ease;
+}
+
+@keyframes modalPopIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal-header {
+    background: linear-gradient(90deg, var(--purple), var(--cyan));
+    padding: 20px 25px;
+    border-bottom: 2px solid rgba(37, 244, 238, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    border-radius: 18px 18px 0 0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 22px;
+    color: white;
+    flex: 1;
+}
+
+.modal-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 28px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: var(--cyan);
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 10px;
+    color: var(--white);
+    font-size: 14px;
+    transition: all 0.3s;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--cyan);
+    background: rgba(37, 244, 238, 0.1);
+    box-shadow: 0 0 15px rgba(37, 244, 238, 0.2);
+}
+
+.form-group input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 15px;
+    border-top: 1px solid rgba(37, 244, 238, 0.2);
+}
+
+.btn-primary, .btn-secondary {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    color: white;
+    border: 2px solid var(--cyan);
+}
+
+.btn-primary:hover {
+    box-shadow: 0 5px 20px rgba(145, 78, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--white);
+    border: 2px solid rgba(37, 244, 238, 0.3);
+}
+
+.btn-secondary:hover {
+    background: rgba(37, 244, 238, 0.1);
+    border-color: var(--cyan);
+}
+
+/* Profile Button - Ensure dropdown positions relative to it */
+#profileBtn {
+    position: relative;
 }

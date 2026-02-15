@@ -1,0 +1,978 @@
+/* ==================== PARAMETRES PAGE - MAIN LAYOUT ==================== */
+
+.parametres-main {
+    min-height: calc(100vh - 200px);
+    padding: 40px 0;
+}
+
+.parametres-header {
+    text-align: center;
+    margin-bottom: 50px;
+    padding: 30px 20px;
+    background: linear-gradient(135deg, rgba(145, 78, 255, 0.2), rgba(16, 21, 157, 0.3));
+    border-radius: 20px;
+    border: 2px solid rgba(37, 244, 238, 0.3);
+}
+
+.parametres-header h1 {
+    font-size: 36px;
+    color: var(--white);
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, var(--cyan), var(--yellow));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.parametres-header .subtitle {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 16px;
+    margin: 0;
+}
+
+.parametres-container {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+/* ==================== TAB NAVIGATION ==================== */
+
+.tabs-navigation {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid rgba(37, 244, 238, 0.2);
+    padding-bottom: 0;
+}
+
+.tab-button {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 15px 25px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tab-button:hover {
+    color: var(--cyan);
+}
+
+.tab-button.active {
+    color: var(--cyan);
+    border-bottom-color: var(--cyan);
+}
+
+.tab-icon {
+    font-size: 18px;
+}
+
+/* ==================== TAB CONTENT ==================== */
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.tab-content.active {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==================== MODAL STYLES ==================== */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: linear-gradient(135deg, rgba(145, 78, 255, 0.15), rgba(16, 21, 157, 0.2));
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    max-width: 600px;
+    width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    backdrop-filter: blur(10px);
+}
+
+.modal-header {
+    padding: 25px;
+    border-bottom: 2px solid rgba(37, 244, 238, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h3 {
+    color: var(--cyan);
+    font-size: 20px;
+    margin: 0;
+    flex: 1;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 28px;
+    cursor: pointer;
+    transition: color 0.3s;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: var(--cyan);
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.modal-footer {
+    padding: 20px 25px;
+    border-top: 2px solid rgba(37, 244, 238, 0.2);
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+}
+
+/* ==================== SETTINGS SECTION ==================== */
+
+.settings-section {
+    background: linear-gradient(135deg, rgba(145, 78, 255, 0.15), rgba(16, 21, 157, 0.2));
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 20px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 30px rgba(9, 21, 100, 0.3);
+}
+
+.section-title {
+    font-size: 22px;
+    color: var(--cyan);
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 2px solid rgba(37, 244, 238, 0.3);
+    padding-bottom: 15px;
+}
+
+.section-title::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(180deg, var(--purple), var(--cyan));
+    border-radius: 2px;
+}
+
+/* ==================== PHOTO SECTION ==================== */
+
+.photo-section {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    margin-bottom: 20px;
+}
+
+.photo-preview {
+    flex-shrink: 0;
+}
+
+.settings-profile-pic {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--cyan);
+    box-shadow: 0 0 30px rgba(37, 244, 238, 0.3);
+}
+
+.photo-controls {
+    flex: 1;
+}
+
+.upload-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    color: var(--white);
+    border: 2px solid var(--cyan);
+    padding: 14px 28px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.3s;
+}
+
+.upload-btn:hover {
+    box-shadow: 0 8px 25px rgba(145, 78, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.upload-btn.hidden {
+    display: none;
+}
+
+.picture-action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.picture-action-buttons.hidden {
+    display: none;
+}
+
+.help-text {
+    margin-top: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+}
+
+/* ==================== SETTINGS FORM ==================== */
+
+.settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    color: var(--cyan);
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-group input {
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 10px;
+    color: var(--white);
+    font-size: 15px;
+    transition: all 0.3s;
+    font-family: inherit;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--cyan);
+    background: rgba(37, 244, 238, 0.1);
+    box-shadow: 0 0 20px rgba(37, 244, 238, 0.2);
+}
+
+.form-group input:read-only {
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.5);
+    cursor: not-allowed;
+}
+
+.form-group input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* ==================== FORM ACTIONS ==================== */
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 2px solid rgba(37, 244, 238, 0.2);
+    justify-content: flex-end;
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: 14px 32px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--purple), var(--primary));
+    color: var(--white);
+    box-shadow: 0 4px 15px rgba(145, 78, 255, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(145, 78, 255, 0.6);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--cyan);
+    border: 2px solid rgba(37, 244, 238, 0.5);
+}
+
+.btn-secondary:hover {
+    border-color: var(--cyan);
+    background: rgba(37, 244, 238, 0.1);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff4757, #ee5a6f);
+    color: var(--white);
+    border: none;
+    padding: 14px 32px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 71, 87, 0.6);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #2ed573, #26de81);
+    color: var(--white);
+    border: none;
+    padding: 14px 32px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4);
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(46, 213, 115, 0.6);
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #2ed573, #26de81);
+    color: var(--white);
+    border: none;
+    padding: 14px 32px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4);
+}
+
+.btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(46, 213, 115, 0.6);
+}
+
+/* ==================== EMAIL DISPLAY ==================== */
+
+.email-display {
+    padding: 30px;
+    background: rgba(37, 244, 238, 0.08);
+    border-radius: 15px;
+    border-left: 4px solid var(--cyan);
+}
+
+.email-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    margin: 0 0 10px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.masked-email {
+    font-size: 24px;
+    color: var(--cyan);
+    font-weight: 700;
+    margin: 10px 0 15px 0;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+}
+
+.email-info {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    margin: 0;
+    font-style: italic;
+}
+
+/* ==================== SUBSECTION STYLING ==================== */
+
+.subsection {
+    margin-bottom: 30px;
+    padding-bottom: 30px;
+    border-bottom: 1px solid rgba(37, 244, 238, 0.2);
+}
+
+.subsection:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.subsection-title {
+    color: var(--cyan);
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ==================== PASSWORD SECTION ==================== */
+
+.password-section {
+    padding: 30px;
+    background: rgba(255, 71, 87, 0.08);
+    border-radius: 15px;
+    border-left: 4px solid #ff4757;
+}
+
+.password-description {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 15px;
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+}
+
+/* ==================== PASSWORD CHANGE FORM (INLINE) ==================== */
+
+.password-change-form {
+    margin-top: 25px;
+    padding: 25px;
+    background: rgba(37, 244, 238, 0.08);
+    border: 2px solid rgba(37, 244, 238, 0.3);
+    border-radius: 12px;
+    animation: slideDown 0.3s ease-out;
+}
+
+.password-change-form.hidden {
+    display: none;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-15px);
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 1000px;
+    }
+}
+
+.password-step {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.password-step:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.password-step.hidden {
+    display: none;
+}
+
+.password-step h3 {
+    color: var(--cyan);
+    font-size: 18px;
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(37, 244, 238, 0.3);
+}
+
+.password-info {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    margin: 0;
+    padding: 12px;
+    background: rgba(37, 244, 238, 0.1);
+    border-left: 3px solid var(--cyan);
+    border-radius: 6px;
+}
+
+.password-requirements {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    margin: 0;
+    padding: 10px;
+    background: rgba(37, 244, 238, 0.1);
+    border-left: 2px solid var(--cyan);
+    border-radius: 8px;
+}
+
+/* ==================== PASSWORD MODAL ==================== */
+
+.password-modal-content {
+    max-width: 500px;
+    width: 90vw;
+}
+
+.password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ==================== CROP MODAL - FULL SCREEN OVERLAY ==================== */
+
+.crop-modal {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 1) !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.crop-modal.hidden {
+    display: none !important;
+}
+
+/* ==================== CROP MODAL CONTENT ==================== */
+
+.crop-modal-content {
+    background: linear-gradient(135deg, rgba(10, 30, 100, 0.98) 0%, rgba(16, 21, 157, 0.98) 100%);
+    border: 2px solid var(--purple);
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 600px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    animation: slideUp 0.3s ease;
+    position: relative;
+    z-index: 10000;
+}
+
+.crop-modal-content h3 {
+    font-size: 22px;
+    color: var(--white);
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.crop-instruction {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* ==================== CROP CONTAINER ==================== */
+
+.crop-container {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.crop-image {
+    max-width: 100%;
+    max-height: 400px;
+    display: block;
+}
+
+/* ==================== CROP BOX ==================== */
+
+.crop-box {
+    position: absolute;
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    cursor: move;
+    background: transparent;
+    border-radius: 50%;
+}
+
+.crop-box-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--cyan);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    z-index: 10;
+}
+
+.crop-handle-nw {
+    top: -6px;
+    left: -6px;
+    cursor: nwse-resize;
+}
+
+.crop-handle-ne {
+    top: -6px;
+    right: -6px;
+    cursor: nesw-resize;
+}
+
+.crop-handle-sw {
+    bottom: -6px;
+    left: -6px;
+    cursor: nesw-resize;
+}
+
+.crop-handle-se {
+    bottom: -6px;
+    right: -6px;
+    cursor: nwse-resize;
+}
+
+.crop-box-overlay {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 5;
+    display: none;
+}
+
+.crop-overlay-n {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    cursor: ns-resize;
+}
+
+.crop-overlay-s {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    cursor: ns-resize;
+}
+
+.crop-overlay-e {
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    cursor: ew-resize;
+}
+
+.crop-overlay-w {
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    cursor: ew-resize;
+}
+
+.crop-guideline {
+    position: absolute;
+    background: rgba(37, 244, 238, 0.3);
+    pointer-events: none;
+    z-index: 6;
+}
+
+.crop-guideline-h {
+    height: 1px;
+    width: 100%;
+    top: 50%;
+    left: 0;
+}
+
+.crop-guideline-v {
+    width: 1px;
+    height: 100%;
+    left: 50%;
+    top: 0;
+}
+
+/* ==================== CROP MODAL BUTTONS ==================== */
+
+.crop-modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+@media (max-width: 768px) {
+    .tabs-navigation {
+        gap: 5px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+
+    .tab-button {
+        padding: 12px 18px;
+        font-size: 14px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .tab-icon {
+        font-size: 16px;
+    }
+
+    .parametres-main {
+        padding: 25px 0;
+    }
+
+    .parametres-header {
+        padding: 20px 15px;
+        margin-bottom: 30px;
+    }
+
+    .parametres-header h1 {
+        font-size: 28px;
+    }
+
+    .parametres-header .subtitle {
+        font-size: 14px;
+    }
+
+    .settings-section {
+        padding: 20px;
+    }
+
+    .section-title {
+        font-size: 18px;
+        margin-bottom: 20px;
+    }
+
+    .photo-section {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 20px;
+    }
+
+    .settings-profile-pic {
+        width: 120px;
+        height: 120px;
+    }
+
+    .upload-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+    }
+
+    .form-group input {
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 12px 24px;
+        font-size: 14px;
+        width: 100%;
+    }
+
+    .modal-content {
+        max-width: 95vw;
+        width: 95vw;
+        max-height: 95vh;
+        border-radius: 15px;
+    }
+
+    .modal-header h3 {
+        font-size: 18px;
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .modal-footer {
+        padding: 15px 20px;
+    }
+
+    .password-section {
+        padding: 20px;
+    }
+
+    .email-display {
+        padding: 20px;
+    }
+
+    .masked-email {
+        font-size: 18px;
+    }
+
+    .crop-modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+
+    .crop-container {
+        min-height: 250px;
+    }
+
+    .crop-image {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .parametres-header h1 {
+        font-size: 24px;
+    }
+
+    .parametres-header .subtitle {
+        font-size: 13px;
+    }
+
+    .settings-section {
+        padding: 15px;
+        border-radius: 15px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        gap: 8px;
+    }
+
+    .settings-profile-pic {
+        width: 100px;
+        height: 100px;
+    }
+
+    .upload-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+
+    .form-group label {
+        font-size: 12px;
+    }
+
+    .form-group input {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+
+    .crop-modal-content {
+        width: 95%;
+        padding: 15px;
+    }
+
+    .crop-container {
+        min-height: 200px;
+    }
+
+    .crop-image {
+        max-height: 250px;
+    }
+
+    .crop-modal-content h3 {
+        font-size: 18px;
+    }
+
+    .crop-instruction {
+        font-size: 12px;
+    }
+}

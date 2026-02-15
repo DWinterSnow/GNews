@@ -38,7 +38,7 @@ class UserModel {
   // Find user by ID
   static async findById(id) {
     try {
-      const query = 'SELECT id, username, email, profile_picture_name, created_at FROM users WHERE id = ?';
+      const query = 'SELECT id, username, email, age, country, profile_picture_name, created_at FROM users WHERE id = ?';
       const [rows] = await pool.execute(query, [id]);
       return rows[0];
     } catch (error) {
@@ -106,6 +106,27 @@ class UserModel {
     try {
       const query = 'UPDATE users SET password = ? WHERE id = ?';
       const [result] = await pool.execute(query, [hashedPassword, userId]);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Update user's profile information
+  static async updateProfile(userId, username, age, country, profilePicture = null) {
+    try {
+      let query = 'UPDATE users SET username = ?, age = ?, country = ?';
+      const params = [username, age, country];
+
+      if (profilePicture) {
+        query += ', profile_picture = ?, profile_picture_thumbnail = ?';
+        params.push(profilePicture, profilePicture);
+      }
+
+      query += ' WHERE id = ?';
+      params.push(userId);
+
+      const [result] = await pool.execute(query, params);
       return result;
     } catch (error) {
       throw error;
