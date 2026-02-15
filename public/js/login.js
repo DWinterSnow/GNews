@@ -1,4 +1,4 @@
-// Login Page JavaScript
+﻿// Login Page JavaScript
 // Handles tab switching, multi-step registration, form submission, and profile picture upload
 
 // ============================================
@@ -73,24 +73,47 @@ let currentStep = 1;
 // AUTH UI MANAGEMENT (Show/Hide buttons based on login state)
 // ============================================
 
-function updateAuthUI() {
+async function updateAuthUI() {
   const authButtons = document.getElementById('authButtons');
   const userIcons = document.getElementById('userIcons');
   
-  if (!authButtons || !userIcons) return; // Elements don't exist on all pages
+  if (!authButtons || !userIcons) return;
   
-  // Check if user is logged in by checking sessionStorage
+  try {
+    if (typeof checkAuthStatus === 'function') {
+      const auth = await checkAuthStatus();
+      if (auth.isLoggedIn) {
+        authButtons.classList.add('hidden');
+        userIcons.classList.remove('hidden');
+        loadNavProfilePicture(auth.user.id);
+      } else {
+        authButtons.classList.remove('hidden');
+        userIcons.classList.add('hidden');
+      }
+      return;
+    }
+  } catch (e) {}
+  
   const userSession = sessionStorage.getItem('user');
-  
   if (userSession) {
-    // User is logged in - show user icons, hide auth buttons
     authButtons.classList.add('hidden');
     userIcons.classList.remove('hidden');
+    try {
+      const user = JSON.parse(userSession);
+      if (user && user.id) loadNavProfilePicture(user.id);
+    } catch (e) {}
   } else {
-    // User is not logged in - show auth buttons, hide user icons
     authButtons.classList.remove('hidden');
     userIcons.classList.add('hidden');
   }
+}
+
+function loadNavProfilePicture(userId) {
+  const navPic = document.getElementById('navProfilePic');
+  if (!navPic) return;
+  const defaultSrc = navPic.src;
+  navPic.src = '/api/users/profile-picture/' + userId;
+  navPic.onerror = () => { navPic.src = defaultSrc; };
 }
 
 // Call updateAuthUI on page load
@@ -422,15 +445,9 @@ function confirmCrop() {
     const scaleX = img.width / imgDisplayRect.width;
     const scaleY = img.height / imgDisplayRect.height;
     
-    // Set canvas size to be circular
+    // Set canvas size to be square
     canvas.width = cropWidth;
     canvas.height = cropHeight;
-    
-    // Draw circular crop with circle clipping path
-    const radius = canvas.width / 2;
-    ctx.beginPath();
-    ctx.arc(radius, radius, radius, 0, Math.PI * 2);
-    ctx.clip();
     
     // Draw cropped image from ORIGINAL
     ctx.drawImage(
@@ -550,18 +567,18 @@ function validateStep1() {
   // Photo is optional but if provided, should be set in currentImageData
   // Username is REQUIRED
   if (!username) {
-    errorEl.textContent = '❌ Veuillez entrer votre nom d\'utilisateur';
+    errorEl.textContent = 'Veuillez entrer votre nom d\'utilisateur';
     return false;
   }
   
   if (username.length < 3) {
-    errorEl.textContent = '❌ Le pseudo doit faire au moins 3 caractères';
+    errorEl.textContent = 'Le pseudo doit faire au moins 3 caractères';
     return false;
   }
   
   // Check if username contains only alphanumeric and underscore
   if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-    errorEl.textContent = '❌ Le pseudo ne peut contenir que des lettres, chiffres et _ (tiret bas)';
+    errorEl.textContent = 'Le pseudo ne peut contenir que des lettres, chiffres et _ (tiret bas)';
     return false;
   }
   
@@ -584,20 +601,20 @@ function validateStep2() {
   errorEl.textContent = '';
   
   if (!email) {
-    errorEl.textContent = '❌ Veuillez entrer votre adresse email';
+    errorEl.textContent = 'Veuillez entrer votre adresse email';
     return false;
   }
   
   // Check if email contains at least one letter
   if (!/[a-zA-Z]/.test(email)) {
-    errorEl.textContent = '❌ Email invalide - doit contenir au moins une lettre';
+    errorEl.textContent = 'Email invalide - doit contenir au moins une lettre';
     return false;
   }
   
   // Basic email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    errorEl.textContent = '❌ Veuillez entrer une adresse email valide';
+    errorEl.textContent = 'Veuillez entrer une adresse email valide';
     return false;
   }
   
@@ -614,35 +631,35 @@ function validateStep3() {
   errorEl.textContent = '';
   
   if (!password) {
-    errorEl.textContent = '❌ Veuillez entrer votre mot de passe';
+    errorEl.textContent = 'Veuillez entrer votre mot de passe';
     return false;
   }
   
   if (password.length < 6) {
-    errorEl.textContent = '❌ Le mot de passe doit faire au moins 6 caractères';
+    errorEl.textContent = 'Le mot de passe doit faire au moins 6 caractères';
     return false;
   }
   
   // Check if password contains at least one letter
   if (!/[a-zA-Z]/.test(password)) {
-    errorEl.textContent = '❌ Mot de passe invalide - doit contenir au moins une lettre';
+    errorEl.textContent = 'Mot de passe invalide - doit contenir au moins une lettre';
     return false;
   }
   
   // Check if password looks like an email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (emailRegex.test(password)) {
-    errorEl.textContent = '❌ Le mot de passe ne peut pas être une adresse email';
+    errorEl.textContent = 'Le mot de passe ne peut pas être une adresse email';
     return false;
   }
   
   if (!confirmPassword) {
-    errorEl.textContent = '❌ Veuillez confirmer votre mot de passe';
+    errorEl.textContent = 'Veuillez confirmer votre mot de passe';
     return false;
   }
   
   if (password !== confirmPassword) {
-    errorEl.textContent = '❌ Les mots de passe ne correspondent pas';
+    errorEl.textContent = 'Les mots de passe ne correspondent pas';
     return false;
   }
   
@@ -716,7 +733,7 @@ async function handleLogin(event) {
     
     if (result.success) {
       // Show success message
-      document.getElementById('loginSuccess').textContent = '✅ Connexion réussie! Redirection...';
+      document.getElementById('loginSuccess').textContent = 'Connexion réussie! Redirection...';
       
       // Store user info
       sessionStorage.setItem('user', JSON.stringify(result.user));
@@ -727,10 +744,10 @@ async function handleLogin(event) {
         window.location.href = 'index.html';
       }, 1500);
     } else {
-      document.getElementById('loginError').textContent = '❌ ' + result.message;
+      document.getElementById('loginError').textContent = '' + result.message;
     }
   } catch (error) {
-    document.getElementById('loginError').textContent = '❌ Erreur: ' + error.message;
+    document.getElementById('loginError').textContent = 'Erreur: ' + error.message;
   } finally {
     loginBtn.disabled = false;
     loginSpinner.innerHTML = '';
@@ -770,11 +787,17 @@ async function handleRegister(event) {
       registrationData.password,
       registrationData.confirmPassword,
       registrationData.profilePictureData,
-      registrationData.profilePictureName
+      registrationData.profilePictureName,
+      registrationData.age,
+      registrationData.country
     );
     
     if (result.success) {
-      document.getElementById('step3Success').textContent = `✅ Compte créé! Bienvenue ${registrationData.username}. Redirection...`;
+      document.getElementById('step3Success').textContent = `Compte cree! Bienvenue ${registrationData.username}. Redirection...`;
+      
+      // Save credentials before clearing
+      const loginEmail = registrationData.email;
+      const loginPassword = registrationData.password;
       
       // Clear registration data
       Object.keys(registrationData).forEach(key => {
@@ -783,18 +806,17 @@ async function handleRegister(event) {
       
       // Auto-login after registration
       setTimeout(async () => {
-        const loginResult = await loginUser(registrationData.email, registrationData.password);
+        const loginResult = await loginUser(loginEmail, loginPassword);
         if (loginResult.success) {
           sessionStorage.setItem('user', JSON.stringify(loginResult.user));
-          updateAuthUI();
           window.location.href = 'index.html';
         }
       }, 1500);
     } else {
-      document.getElementById('step3Error').textContent = '❌ ' + result.message;
+      document.getElementById('step3Error').textContent = '' + result.message;
     }
   } catch (error) {
-    document.getElementById('step3Error').textContent = '❌ Erreur: ' + error.message;
+    document.getElementById('step3Error').textContent = 'Erreur: ' + error.message;
   } finally {
     registerBtn.disabled = false;
     registerSpinner.innerHTML = '';
@@ -923,4 +945,149 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Initialize registration wizard to step 1
   goToStep(1);
+});
+
+// ============================================
+// FORGOT PASSWORD
+// ============================================
+
+let forgotPasswordData = {
+  email: '',
+  username: ''
+};
+
+function openForgotPassword() {
+  forgotPasswordData = { email: '', username: '' };
+  document.getElementById('forgotPasswordModal').classList.remove('hidden');
+  // Reset to step 1
+  document.querySelectorAll('.forgot-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('forgotStep1').classList.add('active');
+  // Clear all inputs and messages
+  document.getElementById('forgotEmail').value = '';
+  document.getElementById('forgotUsername').value = '';
+  document.getElementById('forgotNewPassword').value = '';
+  document.getElementById('forgotConfirmPassword').value = '';
+  document.getElementById('forgotStep1Error').textContent = '';
+  document.getElementById('forgotStep2Error').textContent = '';
+  document.getElementById('forgotStep3Error').textContent = '';
+  document.getElementById('forgotStep3Success').textContent = '';
+}
+
+function closeForgotPassword() {
+  document.getElementById('forgotPasswordModal').classList.add('hidden');
+}
+
+async function forgotStep1Next() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errorEl = document.getElementById('forgotStep1Error');
+  errorEl.textContent = '';
+
+  if (!email) {
+    errorEl.textContent = 'Veuillez entrer votre adresse email';
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    errorEl.textContent = 'Veuillez entrer une adresse email valide';
+    return;
+  }
+
+  forgotPasswordData.email = email;
+
+  // Go to step 2
+  document.querySelectorAll('.forgot-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('forgotStep2').classList.add('active');
+}
+
+async function forgotStep2Next() {
+  const username = document.getElementById('forgotUsername').value.trim();
+  const errorEl = document.getElementById('forgotStep2Error');
+  errorEl.textContent = '';
+
+  if (!username) {
+    errorEl.textContent = 'Veuillez entrer votre nom d\'utilisateur';
+    return;
+  }
+
+  forgotPasswordData.username = username;
+
+  // Verify email + username match
+  try {
+    const result = await verifyResetIdentity(forgotPasswordData.email, forgotPasswordData.username);
+    if (result.success) {
+      // Go to step 3
+      document.querySelectorAll('.forgot-step').forEach(s => s.classList.remove('active'));
+      document.getElementById('forgotStep3').classList.add('active');
+    } else {
+      errorEl.textContent = '' + result.message;
+    }
+  } catch (error) {
+    errorEl.textContent = 'Erreur: ' + error.message;
+  }
+}
+
+async function forgotResetPassword() {
+  const newPassword = document.getElementById('forgotNewPassword').value;
+  const confirmPassword = document.getElementById('forgotConfirmPassword').value;
+  const errorEl = document.getElementById('forgotStep3Error');
+  const successEl = document.getElementById('forgotStep3Success');
+  const resetBtn = document.getElementById('forgotResetBtn');
+  errorEl.textContent = '';
+  successEl.textContent = '';
+
+  if (!newPassword) {
+    errorEl.textContent = 'Veuillez entrer un nouveau mot de passe';
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    errorEl.textContent = 'Le mot de passe doit faire au moins 6 caractères';
+    return;
+  }
+
+  if (!/[a-zA-Z]/.test(newPassword)) {
+    errorEl.textContent = 'Le mot de passe doit contenir au moins une lettre';
+    return;
+  }
+
+  if (!confirmPassword) {
+    errorEl.textContent = 'Veuillez confirmer le mot de passe';
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    errorEl.textContent = 'Les mots de passe ne correspondent pas';
+    return;
+  }
+
+  resetBtn.disabled = true;
+
+  try {
+    const result = await resetUserPassword(forgotPasswordData.email, forgotPasswordData.username, newPassword);
+    if (result.success) {
+      successEl.textContent = 'Mot de passe réinitialisé avec succès ! Redirection...';
+      setTimeout(() => {
+        closeForgotPassword();
+        // Pre-fill email in login form
+        document.getElementById('loginEmail').value = forgotPasswordData.email;
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginPassword').focus();
+      }, 1500);
+    } else {
+      errorEl.textContent = '' + result.message;
+    }
+  } catch (error) {
+    errorEl.textContent = 'Erreur: ' + error.message;
+  } finally {
+    resetBtn.disabled = false;
+  }
+}
+
+// Close forgot password modal when clicking outside
+document.addEventListener('click', function(event) {
+  const modal = document.getElementById('forgotPasswordModal');
+  if (event.target === modal) {
+    closeForgotPassword();
+  }
 });

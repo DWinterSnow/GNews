@@ -12,6 +12,8 @@ const { authMiddleware, optionalAuthMiddleware } = require('../middlewares/auth'
 router.post('/register', UserController.register);
 router.post('/login', UserController.login);
 router.get('/auth-status', UserController.checkAuthStatus);
+router.post('/verify-reset-identity', UserController.verifyResetIdentity);
+router.post('/reset-password', UserController.resetPassword);
 
 // Protected routes
 router.post('/logout', authMiddleware, UserController.logout);

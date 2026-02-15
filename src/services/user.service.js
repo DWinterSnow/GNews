@@ -4,7 +4,7 @@ const UserModel = require('../models/user.model');
 
 class UserService {
   // Register new user
-  static async register(username, email, password, confirmPassword, profilePicture = null, profilePictureThumbnail = null, profilePictureName = null) {
+  static async register(username, email, password, confirmPassword, profilePicture = null, profilePictureThumbnail = null, profilePictureName = null, age = null, country = null) {
     try {
       // Validation
       if (!username || !email || !password) {
@@ -38,7 +38,7 @@ class UserService {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       // Create user
-      const result = await UserModel.create(username, email, hashedPassword, profilePicture, profilePictureThumbnail, profilePictureName);
+      const result = await UserModel.create(username, email, hashedPassword, profilePicture, profilePictureThumbnail, profilePictureName, age, country);
       return {
         id: result.insertId,
         username,
@@ -137,6 +137,67 @@ class UserService {
         success: true,
         userId: userId,
         message: 'Profile picture updated successfully'
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Verify reset identity (email + username match)
+  static async verifyResetIdentity(email, username) {
+    try {
+      if (!email || !username) {
+        throw new Error('Email et nom d\'utilisateur sont requis');
+      }
+
+      const user = await UserModel.findByEmail(email);
+      if (!user) {
+        throw new Error('Aucun compte trouv\u00e9 avec cet email');
+      }
+
+      if (user.username.toLowerCase() !== username.toLowerCase()) {
+        throw new Error('Le nom d\'utilisateur ne correspond pas \u00e0 cet email');
+      }
+
+      return { success: true, userId: user.id };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Reset password
+  static async resetPassword(email, username, newPassword) {
+    try {
+      if (!email || !username || !newPassword) {
+        throw new Error('Tous les champs sont requis');
+      }
+
+      if (newPassword.length < 6) {
+        throw new Error('Le mot de passe doit faire au moins 6 caract\u00e8res');
+      }
+
+      // Verify identity first
+      const user = await UserModel.findByEmail(email);
+      if (!user) {
+        throw new Error('Aucun compte trouv\u00e9 avec cet email');
+      }
+
+      if (user.username.toLowerCase() !== username.toLowerCase()) {
+        throw new Error('Le nom d\'utilisateur ne correspond pas');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      const result = await UserModel.updatePassword(user.id, hashedPassword);
+      if (result.affectedRows === 0) {
+        throw new Error('Erreur lors de la r\u00e9initialisation du mot de passe');
+      }
+
+      return {
+        success: true,
+        message: 'Mot de passe r\u00e9initialis\u00e9 avec succ\u00e8s'
       };
     } catch (error) {
       throw error;

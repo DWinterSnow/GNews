@@ -1,9 +1,16 @@
-// Server.js - Backend pour GNews - Jeux vidéo et actualités
+﻿// Server.js - Backend pour GNews - Jeux vidéo et actualités
 
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
 const Parser = require('rss-parser');
+const session = require('express-session');
+
+// Import database & routes
+const pool = require('./src/config/db');
+const userRoutes = require('./src/routes/user.routes');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -35,7 +42,23 @@ const newsCache = {
 
 // Middleware
 app.use(express.static('public'));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Session
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'gnews_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 heures
+  }
+}));
+
+// User API routes (auth, favorites, reviews)
+app.use('/api/users', userRoutes);
 
 // ==================== ROUTES JEUX ====================
 
@@ -46,7 +69,7 @@ app.get('/api/test-rawg', async (req, res) => {
     });
     res.json({
       success: true,
-      message: '✅ API RAWG fonctionne correctement !',
+      message: 'API RAWG fonctionne correctement !',
       sample_game: response.data.results[0]?.name || 'Aucun jeu trouvé',
       total_games: response.data.count
     });
@@ -88,7 +111,7 @@ function filterAdultContent(games) {
 // ✨ TRENDING - VERSION SIMPLIFIÉE QUI FONCTIONNE
 app.get('/api/games/trending', async (req, res) => {
   try {
-    console.log('🔥 Récupération des jeux TRENDING...');
+    console.log('Récupération des jeux TRENDING...');
     
     // Approche simple : jeux populaires récents (6 derniers mois)
     const twoYearsAgo = new Date();
@@ -109,18 +132,18 @@ app.get('/api/games/trending', async (req, res) => {
       timeout: 10000
     });
     
-    console.log(`📊 API retournée: ${response.data.results.length} jeux bruts`);
+    console.log(`API retournée: ${response.data.results.length} jeux bruts`);
     
     // Filtrer contenu adulte
     let games = filterAdultContent(response.data.results);
-    console.log(`📊 Après filtre adulte: ${games.length} jeux`);
+    console.log(`Après filtre adulte: ${games.length} jeux`);
     
     // Filtrer pour garder seulement les jeux populaires et bien notés
     games = games.filter(game => 
       (game.added || 0) > 5000 && 
       (game.rating || 0) >= 3.0
     );
-    console.log(`📊 Après filtre popularité (>5000) + rating (>=3.0): ${games.length} jeux`);
+    console.log(`Après filtre popularité (>5000) + rating (>=3.0): ${games.length} jeux`);
     
     // Calculer un score de tendance et trier
     games = games.map(game => ({
@@ -154,7 +177,7 @@ app.get('/api/games/trending', async (req, res) => {
       });
       
       games = filterAdultContent(fallbackResponse.data.results);
-      console.log(`📊 FALLBACK: ${games.length} jeux récupérés`);
+      console.log(`FALLBACK: ${games.length} jeux récupérés`);
     }
     
     res.json({
@@ -163,7 +186,7 @@ app.get('/api/games/trending', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Erreur trending:', error.message);
+    console.error('Erreur trending:', error.message);
     res.status(500).json({ 
       error: 'Erreur trending',
       details: error.message
@@ -289,7 +312,7 @@ app.get('/api/games/discover', async (req, res) => {
       params.page_size = 40;
     }
 
-    console.log(`🎮 Discover page ${page} (size: ${pageSize}, sort: ${sort || 'default'}, genre: ${genres || 'all'}, platform: ${platforms || 'all'}, pegi: ${pegi || 'all'})`);
+    console.log(`Discover page ${page} (size: ${pageSize}, sort: ${sort || 'default'}, genre: ${genres || 'all'}, platform: ${platforms || 'all'}, pegi: ${pegi || 'all'})`);
 
     // Helper: apply all post-filters to a list of games
     function applyPostFilters(games) {
@@ -334,7 +357,7 @@ app.get('/api/games/discover', async (req, res) => {
       while (filteredGames.length < MIN_RESULTS && hasNext && extraFetches < MAX_RAWG_PAGES) {
         extraFetches++;
         rawgPage++;
-        console.log(`📥 Post-filter: only ${filteredGames.length} games, fetching RAWG page ${rawgPage}...`);
+        console.log(`Post-filter: only ${filteredGames.length} games, fetching RAWG page ${rawgPage}...`);
 
         try {
           const extraResponse = await axios.get(`${RAWG_BASE_URL}/games`, {
@@ -352,7 +375,7 @@ app.get('/api/games/discover', async (req, res) => {
           break;
         }
       }
-      console.log(`📊 After ${extraFetches} extra fetches: ${filteredGames.length} games total`);
+      console.log(`After ${extraFetches} extra fetches: ${filteredGames.length} games total`);
     } else {
       // No post-filter, just apply adult content filter
       filteredGames = filterAdultContent(response.data.results || []);
@@ -362,7 +385,7 @@ app.get('/api/games/discover', async (req, res) => {
       console.log(`🔞 Filtre PEGI ${pegi}: ${filteredGames.length} jeux après filtrage ESRB`);
     }
 
-    console.log(`✅ Discover: ${filteredGames.length} jeux (page ${page}, total: ${totalCount})`);
+    console.log(`Discover: ${filteredGames.length} jeux (page ${page}, total: ${totalCount})`);
 
     res.json({
       count: totalCount,
@@ -371,7 +394,7 @@ app.get('/api/games/discover', async (req, res) => {
       results: filteredGames
     });
   } catch (error) {
-    console.error('❌ Erreur discover:', error.message);
+    console.error('Erreur discover:', error.message);
     res.status(error.response?.status || 500).json({
       error: 'Erreur lors de la récupération des jeux'
     });
@@ -484,7 +507,7 @@ app.get('/api/games/search', async (req, res) => {
   }
 });
 
-// 🥽 VR GAMES - VERSION OPTIMISÉE : Moins de jeux, chargement rapide
+// VR GAMES - VERSION OPTIMISÉE : Moins de jeux, chargement rapide
 // Cache pour les jeux VR (30 minutes)
 const vrCache = {
   games: [],
@@ -496,14 +519,14 @@ app.get('/api/games/vr-games', async (req, res) => {
   try {
     // Vérifier le cache d'abord
     if (vrCache.games.length > 0 && (Date.now() - vrCache.timestamp) < vrCache.duration) {
-      console.log('🥽 VR: réponse depuis le cache');
+      console.log('VR: réponse depuis le cache');
       return res.json({
         count: vrCache.games.length,
         results: vrCache.games
       });
     }
 
-    console.log('🥽 Recherche jeux VR (batch parallèle)...');
+    console.log('Recherche jeux VR (batch parallèle)...');
     const startTime = Date.now();
 
     // Jeux VR confirmés — divisés en petits groupes pour recherche parallèle
@@ -575,7 +598,7 @@ app.get('/api/games/vr-games', async (req, res) => {
     vrCache.timestamp = Date.now();
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`✅ ${games.length} jeux VR trouvés en ${elapsed}s`);
+    console.log(`${games.length} jeux VR trouvés en ${elapsed}s`);
 
     res.json({
       count: games.length,
@@ -583,7 +606,7 @@ app.get('/api/games/vr-games', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erreur VR:', error.message);
+    console.error('Erreur VR:', error.message);
     res.status(500).json({
       error: 'Erreur VR',
       details: error.message
@@ -610,7 +633,7 @@ app.get('/api/games/platform/:platform', async (req, res) => {
   
   // Pour VR, utiliser l'endpoint spécial
   if (req.params.platform.toLowerCase() === 'vr') {
-    console.log('🥽 Redirection vers endpoint VR spécial');
+    console.log('Redirection vers endpoint VR spécial');
     return res.redirect('/api/games/vr-games');
   }
   
@@ -641,14 +664,14 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       params.ordering = '-added';
     }
     
-    console.log(`🎮 Recherche jeux pour plateforme: ${req.params.platform} (ID: ${platformId})`);
+    console.log(`Recherche jeux pour plateforme: ${req.params.platform} (ID: ${platformId})`);
     
     const response = await axios.get(`${RAWG_BASE_URL}/games`, {
       params: params,
       timeout: 10000
     });
     
-    console.log(`📊 API retournée: ${response.data.results.length} jeux ${req.params.platform}`);
+    console.log(`API retournée: ${response.data.results.length} jeux ${req.params.platform}`);
     
     let filteredGames = filterAdultContent(response.data.results);
     
@@ -664,14 +687,14 @@ app.get('/api/games/platform/:platform', async (req, res) => {
       });
     }
     
-    console.log(`✅ ${filteredGames.length} jeux ${req.params.platform} filtrés`);
+    console.log(`${filteredGames.length} jeux ${req.params.platform} filtrés`);
     
     res.json({
       ...response.data,
       results: filteredGames.slice(0, 50)
     });
   } catch (error) {
-    console.error(`❌ Erreur plateforme ${req.params.platform}:`, error.message);
+    console.error(`Erreur plateforme ${req.params.platform}:`, error.message);
     res.status(error.response?.status || 500).json({ 
       error: 'Erreur lors de la récupération des jeux'
     });
@@ -741,17 +764,17 @@ async function fetchRedditNews() {
           }
         });
         
-        console.log(`✅ r/${sub}: ${validPosts} articles récupérés`);
+        console.log(`r/${sub}: ${validPosts} articles récupérés`);
         
       } catch (subError) {
-        console.error(`❌ Erreur r/${sub}:`, subError.message);
+        console.error(`Erreur r/${sub}:`, subError.message);
       }
     }
     
-    console.log(`✅ Reddit TOTAL: ${articles.length} articles`);
+    console.log(`Reddit TOTAL: ${articles.length} articles`);
     return articles;
   } catch (error) {
-    console.error('❌ Erreur Reddit globale:', error.message);
+    console.error('Erreur Reddit globale:', error.message);
     return [];
   }
 }
@@ -806,14 +829,14 @@ async function fetchRSSNews() {
         addedCount++;
       });
       
-      console.log(`✅ ${feed.source}: ${addedCount} articles (${itemsCount} disponibles)`);
+      console.log(`${feed.source}: ${addedCount} articles (${itemsCount} disponibles)`);
       
     } catch (error) {
-      console.error(`❌ ${feed.source}: ${error.message}`);
+      console.error(`${feed.source}: ${error.message}`);
     }
   }
   
-  console.log(`✅ RSS TOTAL: ${articles.length} articles`);
+  console.log(`RSS TOTAL: ${articles.length} articles`);
   return articles;
 }
 
@@ -841,17 +864,17 @@ async function fetchGuardianNews() {
       category: 'article'
     }));
     
-    console.log(`✅ The Guardian: ${articles.length} articles`);
+    console.log(`The Guardian: ${articles.length} articles`);
     return articles;
   } catch (error) {
-    console.error('❌ Erreur Guardian:', error.message);
+    console.error('Erreur Guardian:', error.message);
     return [];
   }
 }
 
 async function refreshNewsCache() {
   console.log('\n═══════════════════════════════════════════════');
-  console.log('📥 RÉCUPÉRATION MAXIMALE DES ARTICLES');
+  console.log('RÉCUPÉRATION MAXIMALE DES ARTICLES');
   console.log('═══════════════════════════════════════════════\n');
   
   const startTime = Date.now();
@@ -888,17 +911,17 @@ async function refreshNewsCache() {
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
   
   console.log('\n═══════════════════════════════════════════════');
-  console.log('✅ RÉCUPÉRATION TERMINÉE');
+  console.log('RÉCUPÉRATION TERMINÉE');
   console.log('═══════════════════════════════════════════════');
-  console.log(`📊 Statistiques:`);
+  console.log(`Statistiques:`);
   console.log(`   - Reddit: ${redditNews.length} articles`);
   console.log(`   - RSS: ${rssNews.length} articles`);
   console.log(`   - Guardian: ${guardianNews.length} articles`);
   console.log(`   - Brut: ${allArticles.length} articles`);
   console.log(`   - Doublons supprimés: ${allArticles.length - uniqueArticles.length}`);
   console.log(`   - Articles uniques: ${uniqueArticles.length}`);
-  console.log(`⏱️  Temps: ${duration}s`);
-  console.log(`💾 Cache valide: 6 heures`);
+  console.log(`Temps: ${duration}s`);
+  console.log(`Cache valide: 6 heures`);
   console.log('═══════════════════════════════════════════════\n');
   
   return uniqueArticles;
@@ -909,17 +932,17 @@ app.get('/api/news', async (req, res) => {
     const now = Date.now();
     
     if (!newsCache.allArticles.length || (now - newsCache.timestamp) > newsCache.duration) {
-      console.log('🔄 Cache expiré ou vide, rafraîchissement...');
+      console.log('Cache expiré ou vide, rafraîchissement...');
       await refreshNewsCache();
     } else {
       const age = Math.floor((now - newsCache.timestamp) / 1000 / 60);
-      console.log(`✅ ${newsCache.allArticles.length} articles servis depuis le cache (âge: ${age} min)`);
+      console.log(`${newsCache.allArticles.length} articles servis depuis le cache (âge: ${age} min)`);
     }
     
     res.json(newsCache.allArticles);
     
   } catch (error) {
-    console.error('❌ Erreur actualités:', error);
+    console.error('Erreur actualités:', error);
     res.status(500).json({ 
       error: 'Erreur lors de la récupération des actualités',
       details: error.message
@@ -968,7 +991,7 @@ app.get('/', (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error('❌ Erreur serveur:', err);
+  console.error('Erreur serveur:', err);
   res.status(500).json({ 
     error: 'Erreur interne du serveur',
     message: err.message 
@@ -978,24 +1001,24 @@ app.use((err, req, res, next) => {
 // Démarrage du serveur
 app.listen(PORT, async () => {
   console.log('\n═══════════════════════════════════════════════');
-  console.log(`🚀 Serveur GNews démarré`);
-  console.log(`📡 URL: http://localhost:${PORT}`);
+  console.log(`Serveur GNews démarré`);
+  console.log(`URL: http://localhost:${PORT}`);
   console.log('═══════════════════════════════════════════════');
-  console.log(`🎮 API RAWG: Jeux vidéo`);
-  console.log(`🔥 TRENDING: Métacritique + Rating + Popularité`);
-  console.log(`🥽 VR: Recherche stricte de jeux VR confirmés`);
-  console.log(`📰 Sources actualités:`);
+  console.log(`API RAWG: Jeux vidéo`);
+  console.log(`TRENDING: Métacritique + Rating + Popularité`);
+  console.log(`VR: Recherche stricte de jeux VR confirmés`);
+  console.log(`Sources actualités:`);
   console.log(`   - Reddit: 6 subreddits × ~100 posts`);
   console.log(`   - RSS: 11 sources × ~30 articles`);
   console.log(`   - Guardian: ~50 articles`);
-  console.log(`📊 Capacité totale: ~1000 articles`);
-  console.log(`💾 Cache: 6 heures`);
+  console.log(`Capacité totale: ~1000 articles`);
+  console.log(`Cache: 6 heures`);
   console.log('═══════════════════════════════════════════════');
   
-  console.log('\n🔄 Pré-chargement du cache...\n');
+  console.log('\nPré-chargement du cache...\n');
   try {
     await refreshNewsCache();
   } catch (error) {
-    console.error('❌ Erreur lors du pré-chargement:', error.message);
+    console.error('Erreur lors du pré-chargement:', error.message);
   }
 });

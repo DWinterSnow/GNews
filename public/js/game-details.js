@@ -3,7 +3,7 @@
 let currentGame = null;
 let allMedia = [];
 let currentMediaIndex = 0;
-let isFavorite = false;
+let gameIsFavorite = false;
 
 // Toggle review form visibility
 function toggleReviewForm() {
@@ -249,6 +249,30 @@ async function loadGameDetails(gameId) {
         
         // Initialiser la section commentaires
         initCommentsSection();
+
+        // Check auth & favorite status
+        try {
+            const auth = await checkAuthStatus();
+            if (auth.isLoggedIn) {
+                const authButtons = document.getElementById('authButtons');
+                const userIcons = document.getElementById('userIcons');
+                if (authButtons) authButtons.style.display = 'none';
+                if (userIcons) userIcons.classList.remove('hidden');
+
+                // Check if this game is already a favorite
+                const favStatus = await isFavorite(currentGame.id);
+                if (favStatus) {
+                    gameIsFavorite = true;
+                    const favoriteBtn = document.getElementById('favoriteBtn');
+                    if (favoriteBtn) {
+                        favoriteBtn.style.background = 'var(--purple)';
+                        favoriteBtn.querySelector('svg').setAttribute('fill', 'currentColor');
+                    }
+                }
+            }
+        } catch (e) {
+            // Auth not available, continue without
+        }
         
         hideLoading();
     } catch (error) {
@@ -760,18 +784,40 @@ function nextMedia() {
 }
 
 function toggleFavorite() {
-    isFavorite = !isFavorite;
-    const favoriteBtn = document.getElementById('favoriteBtn');
-    
-    if (isFavorite) {
-        favoriteBtn.style.background = 'var(--purple)';
-        favoriteBtn.querySelector('svg').setAttribute('fill', 'currentColor');
-        showNotification('Ajoute aux favoris !');
-    } else {
-        favoriteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-        favoriteBtn.querySelector('svg').setAttribute('fill', 'none');
-        showNotification('Retire des favoris');
-    }
+    if (!currentGame) return;
+
+    // Check auth first
+    checkAuthStatus().then(async (auth) => {
+        if (!auth.isLoggedIn) {
+            showNotification('Connectez-vous pour ajouter aux favoris', 'warning');
+            return;
+        }
+
+        const favoriteBtn = document.getElementById('favoriteBtn');
+        if (gameIsFavorite) {
+            // Remove from favorites
+            const result = await removeFromFavorites(currentGame.id);
+            if (result.success) {
+                gameIsFavorite = false;
+                favoriteBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+                favoriteBtn.querySelector('svg').setAttribute('fill', 'none');
+                showNotification('Retire des favoris');
+            } else {
+                showNotification(result.message || 'Erreur', 'warning');
+            }
+        } else {
+            // Add to favorites
+            const result = await addToFavorites(currentGame.id, currentGame.name);
+            if (result.success) {
+                gameIsFavorite = true;
+                favoriteBtn.style.background = 'var(--purple)';
+                favoriteBtn.querySelector('svg').setAttribute('fill', 'currentColor');
+                showNotification('Ajoute aux favoris !');
+            } else {
+                showNotification(result.message || 'Erreur', 'warning');
+            }
+        }
+    });
 }
 
 function shareGame() {
@@ -1049,51 +1095,63 @@ function updateReviewData() {
 }
 
 // Soumettre un avis
-function submitReview() {
+async function submitReview() {
+    // Check auth
+    const auth = await checkAuthStatus();
+    if (!auth.isLoggedIn) {
+        showNotification('Connectez-vous pour laisser un avis', 'warning');
+        return;
+    }
+
     const commentTextarea = document.getElementById('reviewComment');
     const comment = commentTextarea ? commentTextarea.value.trim() : '';
     
     if (reviewData.rating === 0) {
-        showNotification('⚠️ Veuillez sélectionner une note', 'warning');
+        showNotification('Veuillez selectionner une note', 'warning');
         return;
     }
     
     if (comment.length < 10) {
-        showNotification('⚠️ Votre commentaire doit contenir au moins 10 caractères', 'warning');
+        showNotification('Votre commentaire doit contenir au moins 10 caracteres', 'warning');
         return;
     }
     
     reviewData.comment = comment;
+
+    // Post review to API
+    const result = await postReview(currentGame.id, comment, reviewData.rating);
+
+    if (result.success) {
+        // Create local review object for display
+        const review = {
+            id: 'user_' + Date.now(),
+            userName: auth.user.username || 'Vous',
+            userAvatar: '',
+            rating: reviewData.rating,
+            ownGame: reviewData.ownGame,
+            recommend: reviewData.recommend,
+            comment: reviewData.comment,
+            date: new Date().toISOString(),
+            likes: 0,
+            dislikes: 0,
+            userVote: null,
+            isCurrentUser: true
+        };
     
-    // Créer l'avis avec un ID unique
-    const review = {
-        id: 'user_' + Date.now(),
-        userName: 'Vous',
-        userAvatar: '👤',
-        rating: reviewData.rating,
-        ownGame: reviewData.ownGame,
-        recommend: reviewData.recommend,
-        comment: reviewData.comment,
-        date: new Date().toISOString(),
-        likes: 0,
-        dislikes: 0,
-        userVote: null,
-        isCurrentUser: true
-    };
+        // Sauvegarder l'avis
+        currentUserReview = review;
+        saveUserReview(currentGame.id, review);
     
-    // Sauvegarder l'avis
-    currentUserReview = review;
-    saveUserReview(currentGame.id, review);
+        // Reinitialiser le formulaire
+        resetReviewForm();
     
-    // Réinitialiser le formulaire
-    resetReviewForm();
+        // Afficher l'avis
+        displayUserReview();
     
-    // Afficher l'avis
-    displayUserReview();
-    
-    showNotification('✅ Votre avis a été publié avec succès !');
-    
-    console.log('💾 Avis sauvegardé:', review);
+        showNotification('Votre avis a ete publie avec succes !');
+    } else {
+        showNotification(result.message || 'Erreur lors de la publication', 'warning');
+    }
 }
 
 // Réinitialiser le formulaire

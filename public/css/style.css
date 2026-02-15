@@ -387,6 +387,20 @@ body {
     gap: 15px;
 }
 
+/* Nav Profile Picture */
+.nav-profile-pic {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+a.icon-btn {
+    text-decoration: none;
+    padding: 0;
+    overflow: hidden;
+}
+
 /* Utility Classes */
 .hidden {
     display: none !important;

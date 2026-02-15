@@ -22,6 +22,7 @@
                         <li><a href="index.html" class="nav-link">Accueil</a></li>
                         <li><a href="actu.html" class="nav-link">Actualités</a></li>
                         <li><a href="jeux.html" class="nav-link">Jeux</a></li>
+                        <li><a href="mes-jeux.html" class="nav-link">Mes Jeux</a></li>
                     </ul>
                 </nav>
                 <!-- Mobile Nav Overlay -->
@@ -32,15 +33,16 @@
                         <button class="mobile-nav-close" id="mobileNavClose">&times;</button>
                     </div>
                     <ul class="mobile-nav-links">
-                        <li><a href="index.html" class="mobile-nav-link">🏠 Accueil</a></li>
-                        <li><a href="actu.html" class="mobile-nav-link">📰 Actualités</a></li>
-                        <li><a href="jeux.html" class="mobile-nav-link">🎮 Jeux</a></li>
+                        <li><a href="index.html" class="mobile-nav-link">Accueil</a></li>
+                        <li><a href="actu.html" class="mobile-nav-link">Actualités</a></li>
+                        <li><a href="jeux.html" class="mobile-nav-link">Jeux</a></li>
+                        <li><a href="mes-jeux.html" class="mobile-nav-link">Mes Jeux</a></li>
                     </ul>
                 </div>
                 <div class="header-actions">
                     <div class="search-box">
                         <input type="search" placeholder="Quel jeu vous cherchez ?" id="searchInput">
-                        <button class="search-btn" onclick="performSearch()">🔍</button>
+                        <button class="search-btn" onclick="performSearch()"></button>
                     </div>
                     
                     <!-- Auth Buttons (shown when not logged in) -->
@@ -61,7 +63,38 @@
                                 <path d="M22.5 11l2.9 7.1c1.2 3 3.6 5.3 6.5 6.5l7.1 2.9c1.3.5 1.3 2.4 0 2.9l-7.1 2.9c-3 1.2-5.3 3.6-6.5 6.5l-2.9 7.1c-.5 1.3-2.4 1.3-2.9 0l-2.9-7.1c-1.2-3-3.6-5.3-6.5-6.5l-7.1-2.9c-1.3-.5-1.3-2.4 0-2.9l7.1-2.9c3-1.2 5.3-3.6 6.5-6.5l2.9-7.1c.5-1.3 2.4-1.3 2.9 0zm17.4-8.3l.8 2.4c.7 1.9 2.2 3.4 4.1 4.1l2.4.8c.9.3.9 1.6 0 1.9l-2.4.8c-1.9.7-3.4 2.2-4.1 4.1l-.8 2.4c-.3.9-1.6.9-1.9 0l-.8-2.4c-.7-1.9-2.2-3.4-4.1-4.1l-2.4-.8c-.9-.3-.9-1.6 0-1.9l2.4-.8c1.9-.7 3.4-2.2 4.1-4.1l.8-2.4c.3-.9 1.6-.9 1.9 0z"/>
                             </svg>
                         </button>
-                        <a href="login.html" id="profile-btn" class="icon-btn">👤</a>
+                        <a href="login.html" id="profileBtn" class="icon-btn">
+                            <img id="navProfilePic" class="nav-profile-pic" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23fcc419'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%231a1a2e'/%3E%3Cellipse cx='50' cy='70' rx='25' ry='18' fill='%231a1a2e'/%3E%3C/svg%3E" alt="Profil">
+                        </a>
+                        <!-- Profile Dropdown -->
+                        <div id="profileDropdown" class="profile-dropdown hidden">
+                            <button id="editProfileBtn">Modifier le profil</button>
+                            <button id="logoutBtn">Déconnexion</button>
+                        </div>
+                        <!-- Edit Profile Modal -->
+                        <div id="editProfileModal" class="modal hidden">
+                            <div class="modal-content">
+                                <span class="close" id="closeEditProfile">&times;</span>
+                                <h2>Modifier le profil</h2>
+                                <form id="editProfileForm">
+                                    <label for="editUsername">Nom d'utilisateur</label>
+                                    <input type="text" id="editUsername" name="editUsername" required>
+                                    <label for="editProfilePic">Photo de profil</label>
+                                    <input type="file" id="editProfilePic" name="editProfilePic" accept="image/*">
+                                    <button type="submit">Enregistrer</button>
+                                </form>
+                            </div>
+                        </div>
+                        <!-- Logout Modal -->
+                        <div id="logoutModal" class="modal hidden">
+                            <div class="modal-content">
+                                <span class="close" id="closeLogoutModal">&times;</span>
+                                <h2>Déconnexion</h2>
+                                <p>Voulez-vous vraiment vous déconnecter ?</p>
+                                <button id="confirmLogout">Oui, déconnecter</button>
+                                <button id="cancelLogout">Annuler</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -72,7 +105,7 @@
         <div class="auth-wrapper">
             <div class="auth-card">
                 <div class="auth-header">
-                    <h1>🎮 GNews</h1>
+                    <h1>🎮GNews</h1>
                     <p>Connexion à votre compte gaming</p>
                 </div>
 
@@ -84,18 +117,19 @@
                 <!-- LOGIN FORM -->
                 <form id="loginForm" class="auth-form active" onsubmit="handleLogin(event)">
                     <div class="form-group">
-                        <label for="loginEmail">📧 Email</label>
+                        <label for="loginEmail">Email</label>
                         <input type="email" id="loginEmail" name="email" placeholder="votre@email.com" required>
                         <div class="error-message" id="loginEmailError"></div>
                     </div>
 
                     <div class="form-group">
-                        <label for="loginPassword">🔐 Mot de passe</label>
+                        <label for="loginPassword">Mot de passe</label>
                         <input type="password" id="loginPassword" name="password" placeholder="Votre mot de passe" required>
                         <div class="error-message" id="loginPasswordError"></div>
                     </div>
 
                     <p class="signup-link">Vous n'avez pas de compte ? <a onclick="switchToRegister()">Créer un compte</a></p>
+                    <p class="forgot-password-link"><a onclick="openForgotPassword()">Mot de passe oublié ?</a></p>
 
                     <button type="submit" class="btn-submit" id="loginBtn">
                         <span id="loginSpinner"></span>
@@ -130,12 +164,12 @@
                         <p class="step-description">Complétez vos informations personnelles</p>
                         
                         <div class="form-group">
-                            <label>🖼️ Photo de profil <span class="required">*</span></label>
+                            <label>Photo de profil <span class="required">*</span></label>
                             <div class="profile-picture-upload">
                                 <img id="profilePreview" class="profile-picture-preview hidden" alt="Aperçu">
                                 <div id="profileButtonsContainer" class="profile-buttons hidden">
-                                    <button type="button" class="btn-small btn-crop" onclick="cropImage()">✂️ Recadrer</button>
-                                    <button type="button" class="btn-small btn-change" onclick="changeImage()">🔄 Changer</button>
+                                    <button type="button" class="btn-small btn-crop" onclick="cropImage()">Recadrer</button>
+                                    <button type="button" class="btn-small btn-change" onclick="changeImage()">Changer</button>
                                 </div>
                                 <button type="button" class="btn-upload" id="uploadPhotoBtn" onclick="document.getElementById('profilePicture').click()">
                                     Choisir une photo
@@ -145,20 +179,20 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="registerUsername">👤 Nom d'utilisateur <span class="required">*</span></label>
+                            <label for="registerUsername"> Nom d'utilisateur <span class="required">*</span></label>
                             <input type="text" id="registerUsername" name="username" placeholder="Votre pseudo" required minlength="3">
                             <div class="error-message" id="registerUsernameError"></div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group half">
-                                <label for="registerAge">🎂 Âge</label>
+                                <label for="registerAge">Âge</label>
                                 <input type="number" id="registerAge" name="age" placeholder="Ex: 25" min="13" max="120">
                                 <div class="error-message" id="registerAgeError"></div>
                             </div>
 
                             <div class="form-group half">
-                                <label for="registerCountry">🌍 Pays</label>
+                                <label for="registerCountry">Pays</label>
                                 <select id="registerCountry" name="country" class="country-select">
                                     <option value="">-- Sélectionnez un pays --</option>
                                 </select>
@@ -181,19 +215,19 @@
                         <p class="step-description">Configurez vos identifiants de connexion</p>
                         
                         <div class="form-group">
-                            <label for="registerEmail">📧 Adresse Email <span class="required">*</span></label>
+                            <label for="registerEmail">Adresse Email <span class="required">*</span></label>
                             <input type="email" id="registerEmail" name="email" placeholder="votre@email.com" required>
                             <div class="error-message" id="registerEmailError"></div>
                         </div>
 
                         <div class="form-group">
-                            <label for="registerPassword">🔐 Mot de passe <span class="required">*</span></label>
+                            <label for="registerPassword">Mot de passe <span class="required">*</span></label>
                             <input type="password" id="registerPassword" name="password" placeholder="Min. 6 caractères" required minlength="6">
                             <div class="error-message" id="registerPasswordError"></div>
                         </div>
 
                         <div class="form-group">
-                            <label for="registerConfirmPassword">🔐 Confirmer le mot de passe <span class="required">*</span></label>
+                            <label for="registerConfirmPassword">Confirmer le mot de passe <span class="required">*</span></label>
                             <input type="password" id="registerConfirmPassword" name="confirmPassword" placeholder="Confirmez votre mot de passe" required minlength="6">
                             <div class="error-message" id="registerConfirmPasswordError"></div>
                         </div>
@@ -382,9 +416,64 @@
         </div>
     </footer>
 
+    <!-- FORGOT PASSWORD MODAL -->
+    <div id="forgotPasswordModal" class="forgot-modal hidden">
+        <div class="forgot-modal-content">
+            <h3>Mot de passe oublié</h3>
+
+            <!-- Step 1: Enter email -->
+            <div id="forgotStep1" class="forgot-step active">
+                <p class="forgot-instruction">Entrez votre adresse email pour réinitialiser votre mot de passe.</p>
+                <div class="form-group">
+                    <label for="forgotEmail">Email</label>
+                    <input type="email" id="forgotEmail" placeholder="votre@email.com" required>
+                </div>
+                <div id="forgotStep1Error" class="error-message form-message"></div>
+                <div class="forgot-modal-buttons">
+                    <button type="button" class="btn-submit" onclick="forgotStep1Next()">Suivant</button>
+                    <button type="button" class="btn-cancel" onclick="closeForgotPassword()">Annuler</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Verify username -->
+            <div id="forgotStep2" class="forgot-step">
+                <p class="forgot-instruction">Pour vérifier votre identité, entrez votre nom d'utilisateur.</p>
+                <div class="form-group">
+                    <label for="forgotUsername"> Nom d'utilisateur</label>
+                    <input type="text" id="forgotUsername" placeholder="Votre pseudo" required>
+                </div>
+                <div id="forgotStep2Error" class="error-message form-message"></div>
+                <div class="forgot-modal-buttons">
+                    <button type="button" class="btn-submit" onclick="forgotStep2Next()">Vérifier</button>
+                    <button type="button" class="btn-cancel" onclick="closeForgotPassword()">Annuler</button>
+                </div>
+            </div>
+
+            <!-- Step 3: New password -->
+            <div id="forgotStep3" class="forgot-step">
+                <p class="forgot-instruction">Choisissez votre nouveau mot de passe.</p>
+                <div class="form-group">
+                    <label for="forgotNewPassword">Nouveau mot de passe</label>
+                    <input type="password" id="forgotNewPassword" placeholder="Nouveau mot de passe" required>
+                </div>
+                <div class="form-group">
+                    <label for="forgotConfirmPassword">Confirmer le mot de passe</label>
+                    <input type="password" id="forgotConfirmPassword" placeholder="Confirmer le mot de passe" required>
+                </div>
+                <div id="forgotStep3Error" class="error-message form-message"></div>
+                <div id="forgotStep3Success" class="success-message form-message"></div>
+                <div class="forgot-modal-buttons">
+                    <button type="button" class="btn-submit" id="forgotResetBtn" onclick="forgotResetPassword()">Réinitialiser</button>
+                    <button type="button" class="btn-cancel" onclick="closeForgotPassword()">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/search-utils.js"></script>
     <script src="js/auth-api.js"></script>
     <script src="js/login.js"></script>
+    <script src="js/profile-menu.js"></script>
 </body>
 </html>
 

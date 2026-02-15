@@ -1,4 +1,4 @@
-// Example Frontend Code for Users & Favorites System
+﻿// Example Frontend Code for Users & Favorites System
 // Add this to your js/ folder and use in HTML files
 
 // ============================================
@@ -12,13 +12,13 @@ async function checkAuthStatus() {
     const data = await response.json();
     
     if (data.isLoggedIn) {
-      console.log('✅ User logged in:', data.user.username);
+      console.log('User logged in:', data.user.username);
       return {
         isLoggedIn: true,
         user: data.user
       };
     } else {
-      console.log('❌ User not logged in');
+      console.log('User not logged in');
       return {
         isLoggedIn: false,
         user: null
@@ -31,7 +31,7 @@ async function checkAuthStatus() {
 }
 
 // Register new user
-async function registerUser(username, email, password, confirmPassword, profilePictureData = null, profilePictureName = null) {
+async function registerUser(username, email, password, confirmPassword, profilePictureData = null, profilePictureName = null, age = null, country = null) {
   try {
     const payload = {
       username,
@@ -46,6 +46,10 @@ async function registerUser(username, email, password, confirmPassword, profileP
       payload.profilePictureName = profilePictureName;
     }
 
+    // Add optional fields
+    if (age) payload.age = parseInt(age);
+    if (country) payload.country = country;
+
     const response = await fetch('/api/users/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -55,10 +59,10 @@ async function registerUser(username, email, password, confirmPassword, profileP
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Registration successful!', data.data);
+      console.log('Registration successful!', data.data);
       return { success: true, data: data.data };
     } else {
-      console.log('❌ Registration failed:', data.message);
+      console.log('Registration failed:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -79,10 +83,10 @@ async function loginUser(email, password) {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Login successful! Welcome', data.data.username);
+      console.log('Login successful! Welcome', data.data.username);
       return { success: true, user: data.data };
     } else {
-      console.log('❌ Login failed:', data.message);
+      console.log('Login failed:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -101,15 +105,63 @@ async function logoutUser() {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Logout successful');
+      console.log('Logout successful');
       return { success: true };
     } else {
-      console.log('❌ Logout failed');
+      console.log('Logout failed');
       return { success: false };
     }
   } catch (error) {
     console.error('Error logging out:', error);
     return { success: false };
+  }
+}
+
+// ============================================
+// FORGOT PASSWORD FUNCTIONS
+// ============================================
+
+// Verify that email + username match
+async function verifyResetIdentity(email, username) {
+  try {
+    const response = await fetch('/api/users/verify-reset-identity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, username })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      return { success: true };
+    } else {
+      return { success: false, message: data.message };
+    }
+  } catch (error) {
+    console.error('Error verifying identity:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Reset password
+async function resetUserPassword(email, username, newPassword) {
+  try {
+    const response = await fetch('/api/users/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, username, newPassword })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      return { success: true };
+    } else {
+      return { success: false, message: data.message };
+    }
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return { success: false, message: error.message };
   }
 }
 
@@ -132,10 +184,10 @@ async function addToFavorites(gameId, gameTitle) {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Added to favorites:', gameTitle);
+      console.log('Added to favorites:', gameTitle);
       return { success: true, message: 'Added to favorites' };
     } else {
-      console.log('❌ Error:', data.message);
+      console.log('Error:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -158,10 +210,10 @@ async function removeFromFavorites(gameId) {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Removed from favorites');
+      console.log('Removed from favorites');
       return { success: true, message: 'Removed from favorites' };
     } else {
-      console.log('❌ Error:', data.message);
+      console.log('Error:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -193,10 +245,10 @@ async function getUserFavorites() {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Favorites:', data.data.favorites);
+      console.log('Favorites:', data.data.favorites);
       return { success: true, favorites: data.data.favorites };
     } else {
-      console.log('❌ Error:', data.message);
+      console.log('Error:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -235,10 +287,10 @@ async function postReview(gameId, commentText, rating) {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Review posted!');
+      console.log('Review posted!');
       return { success: true, message: 'Review posted successfully' };
     } else {
-      console.log('❌ Error:', data.message);
+      console.log('Error:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -254,7 +306,7 @@ async function getGameReviews(gameId) {
     const data = await response.json();
     
     if (data.success) {
-      console.log(`✅ Found ${data.data.count} reviews`);
+      console.log(`Found ${data.data.count} reviews`);
       return {
         success: true,
         reviews: data.data.reviews,
@@ -262,7 +314,7 @@ async function getGameReviews(gameId) {
         totalReviews: data.data.totalReviews
       };
     } else {
-      console.log('❌ Error:', data.message);
+      console.log('Error:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -286,10 +338,10 @@ async function updateReview(reviewId, commentText, rating) {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Review updated!');
+      console.log('Review updated!');
       return { success: true, message: 'Review updated successfully' };
     } else {
-      console.log('❌ Error:', data.message);
+      console.log('Error:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -308,10 +360,10 @@ async function deleteReview(reviewId) {
     const data = await response.json();
     
     if (data.success) {
-      console.log('✅ Review deleted!');
+      console.log('Review deleted!');
       return { success: true, message: 'Review deleted successfully' };
     } else {
-      console.log('❌ Error:', data.message);
+      console.log('Error:', data.message);
       return { success: false, message: data.message };
     }
   } catch (error) {
@@ -365,7 +417,7 @@ async function updateUIBasedOnLogin() {
 <div class="game-card">
   <h3>Elden Ring</h3>
   <button class="follow-btn" onclick="addToFavorites(1234, 'Elden Ring')">
-    ⭐ Add to Favorites
+    Add to Favorites
   </button>
 </div>
 
@@ -430,7 +482,7 @@ async function displayProfilePicture(userId, imgElement) {
       reviewEl.className = 'review';
       reviewEl.innerHTML = `
         <h4>${review.username}</h4>
-        <p>Rating: ${'⭐'.repeat(review.rating)}</p>
+        <p>Rating: ${'*'.repeat(review.rating)}</p>
         <p>${review.comment_text}</p>
         <small>${new Date(review.created_at).toLocaleDateString()}</small>
       `;

@@ -3,10 +3,10 @@ const pool = require('../config/db');
 
 class UserModel {
   // Create new user
-  static async create(username, email, hashedPassword, profilePicture = null, profilePictureThumbnail = null, profilePictureName = null) {
+  static async create(username, email, hashedPassword, profilePicture = null, profilePictureThumbnail = null, profilePictureName = null, age = null, country = null) {
     try {
-      const query = 'INSERT INTO users (username, email, password, profile_picture, profile_picture_thumbnail, profile_picture_name) VALUES (?, ?, ?, ?, ?, ?)';
-      const [result] = await pool.execute(query, [username, email, hashedPassword, profilePicture, profilePictureThumbnail, profilePictureName]);
+      const query = 'INSERT INTO users (username, email, password, profile_picture, profile_picture_thumbnail, profile_picture_name, age, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+      const [result] = await pool.execute(query, [username, email, hashedPassword, profilePicture, profilePictureThumbnail, profilePictureName, age, country]);
       return result;
     } catch (error) {
       throw error;
@@ -95,6 +95,17 @@ class UserModel {
     try {
       const query = 'UPDATE users SET profile_picture = ?, profile_picture_thumbnail = ? WHERE id = ?';
       const [result] = await pool.execute(query, [profilePicture, profilePictureThumbnail, userId]);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Update user's password
+  static async updatePassword(userId, hashedPassword) {
+    try {
+      const query = 'UPDATE users SET password = ? WHERE id = ?';
+      const [result] = await pool.execute(query, [hashedPassword, userId]);
       return result;
     } catch (error) {
       throw error;

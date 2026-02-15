@@ -4,24 +4,47 @@
 // AUTH UI MANAGEMENT (Show/Hide buttons based on login state)
 // ============================================
 
-function updateAuthUI() {
+async function updateAuthUI() {
   const authButtons = document.getElementById('authButtons');
   const userIcons = document.getElementById('userIcons');
   
-  if (!authButtons || !userIcons) return; // Elements don't exist on all pages
+  if (!authButtons || !userIcons) return;
   
-  // Check if user is logged in by checking sessionStorage
+  try {
+    if (typeof checkAuthStatus === 'function') {
+      const auth = await checkAuthStatus();
+      if (auth.isLoggedIn) {
+        authButtons.classList.add('hidden');
+        userIcons.classList.remove('hidden');
+        loadNavProfilePicture(auth.user.id);
+      } else {
+        authButtons.classList.remove('hidden');
+        userIcons.classList.add('hidden');
+      }
+      return;
+    }
+  } catch (e) {}
+  
   const userSession = sessionStorage.getItem('user');
-  
   if (userSession) {
-    // User is logged in - show user icons, hide auth buttons
     authButtons.classList.add('hidden');
     userIcons.classList.remove('hidden');
+    try {
+      const user = JSON.parse(userSession);
+      if (user && user.id) loadNavProfilePicture(user.id);
+    } catch (e) {}
   } else {
-    // User is not logged in - show auth buttons, hide user icons
     authButtons.classList.remove('hidden');
     userIcons.classList.add('hidden');
   }
+}
+
+function loadNavProfilePicture(userId) {
+  const navPic = document.getElementById('navProfilePic');
+  if (!navPic) return;
+  const defaultSrc = navPic.src;
+  navPic.src = '/api/users/profile-picture/' + userId;
+  navPic.onerror = () => { navPic.src = defaultSrc; };
 }
 
 // Ensure globals are available on window so other pages can access them
