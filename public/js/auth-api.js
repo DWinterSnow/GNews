@@ -8,7 +8,7 @@
 // Check if user is logged in
 async function checkAuthStatus() {
   try {
-    const response = await fetch('/api/users/auth-status');
+    const response = await fetch('/api/users/auth-status', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (data.isLoggedIn) {
@@ -52,6 +52,7 @@ async function registerUser(username, email, password, confirmPassword, profileP
 
     const response = await fetch('/api/users/register', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
@@ -76,6 +77,7 @@ async function loginUser(email, password) {
   try {
     const response = await fetch('/api/users/login', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
@@ -99,7 +101,8 @@ async function loginUser(email, password) {
 async function logoutUser() {
   try {
     const response = await fetch('/api/users/logout', {
-      method: 'POST'
+      method: 'POST',
+      credentials: 'same-origin'
     });
     
     const data = await response.json();

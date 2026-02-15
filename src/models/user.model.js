@@ -49,9 +49,10 @@ class UserModel {
   // Get user's profile picture
   static async getProfilePicture(id) {
     try {
-      const query = 'SELECT profile_picture FROM users WHERE id = ?';
+      const query = 'SELECT profile_picture, profile_picture_name FROM users WHERE id = ?';
       const [rows] = await pool.execute(query, [id]);
-      return rows[0]?.profile_picture || null;
+      if (!rows[0]) return null;
+      return { data: rows[0].profile_picture || null, name: rows[0].profile_picture_name || null };
     } catch (error) {
       throw error;
     }
@@ -93,8 +94,11 @@ class UserModel {
   // Update user's profile picture
   static async updateProfilePicture(userId, profilePicture, profilePictureThumbnail) {
     try {
-      const query = 'UPDATE users SET profile_picture = ?, profile_picture_thumbnail = ? WHERE id = ?';
-      const [result] = await pool.execute(query, [profilePicture, profilePictureThumbnail, userId]);
+      const query = 'UPDATE users SET profile_picture = ?, profile_picture_thumbnail = ?, profile_picture_name = ? WHERE id = ?';
+      // profilePictureThumbnail may be same as profilePicture; profile_picture_name will be filled by caller via params if available
+      // We intentionally set profile_picture_name to NULL here; callers that need to set a name should use updateProfile which supports an object
+      const name = null;
+      const [result] = await pool.execute(query, [profilePicture, profilePictureThumbnail, name, userId]);
       return result;
     } catch (error) {
       throw error;
@@ -119,8 +123,13 @@ class UserModel {
       const params = [username, age, country];
 
       if (profilePicture) {
-        query += ', profile_picture = ?, profile_picture_thumbnail = ?';
-        params.push(profilePicture, profilePicture);
+        query += ', profile_picture = ?, profile_picture_thumbnail = ?, profile_picture_name = ?';
+        // If profilePicture is an object with {data, name}, support that
+        if (profilePicture && typeof profilePicture === 'object' && profilePicture.data) {
+          params.push(profilePicture.data, profilePicture.data, profilePicture.name || null);
+        } else {
+          params.push(profilePicture, profilePicture, null);
+        }
       }
 
       query += ' WHERE id = ?';

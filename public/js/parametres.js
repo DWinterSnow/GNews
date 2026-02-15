@@ -19,6 +19,40 @@ let cropBoxState = {
   imgHeight: 0
 };
 let currentUser = null;
+let initialProfileState = { username: null, age: null, country: null, picture: null };
+
+// ======= Inline message helpers =======
+function showProfileMessage(message, type = 'error') {
+  const el = document.getElementById('profileFormMessage');
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = 'block';
+  el.classList.remove('form-error', 'form-info');
+  if (type === 'error') el.classList.add('form-error');
+  else el.classList.add('form-info');
+}
+
+function clearProfileMessage() {
+  const el = document.getElementById('profileFormMessage');
+  if (!el) return;
+  el.textContent = '';
+  el.style.display = 'none';
+  el.classList.remove('form-error', 'form-info');
+}
+
+function setFieldError(fieldId, message) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function clearFieldError(fieldId) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  el.textContent = '';
+  el.style.display = 'none';
+}
 
 // ==================== INITIALIZATION ====================
 
@@ -63,6 +97,11 @@ function loadUserSettings(user) {
       settingsProfilePic.src = defaultSrc;
     };
   }
+
+  // Save initial values to detect changes
+  initialProfileState.username = user.username || '';
+  initialProfileState.age = user.age || '';
+  initialProfileState.country = user.country || '';
 }
 
 // ==================== MASK EMAIL ====================
@@ -150,6 +189,52 @@ function setupEventListeners() {
     usernameInput.addEventListener('blur', validateUsernameInput);
   }
 
+  // Show form actions when user edits fields or picture
+  const settingsAge = document.getElementById('settingsAge');
+  const settingsCountry = document.getElementById('settingsCountry');
+  const formActions = document.querySelector('.form-actions');
+
+  function updateFormActionsVisibility() {
+    if (!formActions) return;
+    const currentUsername = (document.getElementById('settingsUsername')?.value || '').trim();
+    const currentAge = (document.getElementById('settingsAge')?.value || '').trim();
+    const currentCountry = (document.getElementById('settingsCountry')?.value || '').trim();
+
+    const pictureChanged = !!croppedImageData;
+    const usernameChanged = currentUsername !== (initialProfileState.username || '');
+    const ageChanged = currentAge !== String(initialProfileState.age || '');
+    const countryChanged = currentCountry !== (initialProfileState.country || '');
+
+    if (pictureChanged || usernameChanged || ageChanged || countryChanged) {
+      formActions.style.display = 'flex';
+    } else {
+      formActions.style.display = 'none';
+    }
+  }
+
+  // Hide actions by default until a change is detected
+  if (formActions) formActions.style.display = 'none';
+
+  if (usernameInput) usernameInput.addEventListener('input', updateFormActionsVisibility);
+  if (settingsAge) settingsAge.addEventListener('input', updateFormActionsVisibility);
+  if (settingsCountry) settingsCountry.addEventListener('input', updateFormActionsVisibility);
+
+
+// Refresh profile picture elements with cache-busting
+function refreshProfilePics(userId) {
+  try {
+    const ts = Date.now();
+    const settingsPic = document.getElementById('settingsProfilePic');
+    const navPic = document.getElementById('navProfilePic');
+    const dropdownPic = document.getElementById('dropdownProfilePic');
+    const src = `/api/users/profile-picture/${userId}?v=${ts}`;
+    if (settingsPic) settingsPic.src = src;
+    if (navPic) navPic.src = src;
+    if (dropdownPic) dropdownPic.src = src;
+  } catch (e) {
+    console.warn('refreshProfilePics failed', e);
+  }
+}
   // Change image button
   const changeImageBtn = document.getElementById('changeImageBtn');
   if (changeImageBtn) {
@@ -196,13 +281,13 @@ function handlePhotoUpload(e) {
 
   // Validate file type
   if (!file.type.startsWith('image/')) {
-    alert('Veuillez sélectionner une image');
+    showProfileMessage('Veuillez sélectionner une image', 'error');
     return;
   }
 
   // Validate file size (5MB)
   if (file.size > 5 * 1024 * 1024) {
-    alert('L\'image doit faire moins de 5MB');
+    showProfileMessage("L'image doit faire moins de 5MB", 'error');
     return;
   }
 
@@ -494,6 +579,8 @@ function confirmCrop() {
     
     const message = 'Photo recadrée avec succès! Vous pouvez enregistrer la photo seule ou cliquer sur "Enregistrer les modifications" pour mettre à jour votre profil complet.';
     console.log(message); // For debugging
+    // Ensure the form actions are visible since image changed
+    try { updateFormActionsVisibility(); } catch (e) { /* ignore if not defined yet */ }
   };
   // Use the ORIGINAL image for cropping
   img.src = originalImageData;
@@ -556,12 +643,12 @@ async function handleProfileFormSubmit(e) {
 
   // Validation
   if (!username) {
-    alert('Le nom d\'utilisateur est obligatoire');
+    setFieldError('usernameError', "Le nom d'utilisateur est obligatoire");
     return;
   }
 
   if (username.length < 3) {
-    alert('Le nom d\'utilisateur doit contenir au moins 3 caractères');
+    setFieldError('usernameError', "Le nom d'utilisateur doit contenir au moins 3 caractères");
     return;
   }
 
@@ -569,30 +656,17 @@ async function handleProfileFormSubmit(e) {
   const usernameRegex = /^[a-zA-Z0-9_]+$/;
   if (!usernameRegex.test(username)) {
     const errorMsg = 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres et underscores (_)';
-    alert(errorMsg);
-    if (usernameError) {
-      usernameError.textContent = errorMsg;
-      usernameError.style.display = 'block';
-    }
+    setFieldError('usernameError', errorMsg);
     return;
   }
 
-  // Check if username has changed
-  if (currentUser && username === currentUser.username) {
-    const errorMsg = 'Le nouveau nom d\'utilisateur doit être différent de votre nom actuel';
-    alert(errorMsg);
-    if (usernameError) {
-      usernameError.textContent = errorMsg;
-      usernameError.style.display = 'block';
-    }
-    return;
-  }
+  // Allow saving without changing username
 
   // Age validation: optional but must be valid if provided
   if (age) {
     const ageNum = parseInt(age);
     if (isNaN(ageNum) || ageNum < 13 || ageNum > 120) {
-      alert('L\'âge doit être entre 13 et 120');
+      showProfileMessage("L'âge doit être entre 13 et 120", 'error');
       return;
     }
   }
@@ -614,6 +688,7 @@ async function handleProfileFormSubmit(e) {
   try {
     const response = await fetch('/api/users/update-profile', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
@@ -621,7 +696,7 @@ async function handleProfileFormSubmit(e) {
     const data = await response.json();
 
     if (data.success) {
-      alert('Profil mis à jour avec succès!');
+      showProfileMessage('Profil mis à jour avec succès!', 'info');
       
       // Update session
       const user = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -632,16 +707,26 @@ async function handleProfileFormSubmit(e) {
       // Reset cropped image
       croppedImageData = null;
 
-      // Reload page to show updates
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // Immediately refresh profile pictures (cache-busted) without full reload
+      const userId = (currentUser && currentUser.id) || (data.data && data.data.id) || (user && user.id);
+      if (userId) {
+        refreshProfilePics(userId);
+      }
+
+      // Update initial state to current values so form hides again
+      initialProfileState.username = payload.username;
+      initialProfileState.age = payload.age;
+      initialProfileState.country = payload.country;
+
+      // Hide form actions now that changes are saved
+      const formActions = document.querySelector('.form-actions');
+      if (formActions) formActions.style.display = 'none';
     } else {
-      alert('Erreur: ' + (data.message || 'La mise à jour a échoué'));
+      showProfileMessage('Erreur: ' + (data.message || 'La mise à jour a échoué'), 'error');
     }
   } catch (error) {
     console.error('Erreur mise à jour profil:', error);
-    alert('Erreur lors de la mise à jour du profil');
+    showProfileMessage('Erreur lors de la mise à jour du profil', 'error');
   }
 }
 
@@ -752,6 +837,7 @@ async function handlePasswordConfirmation() {
     // Verify current password
     const response = await fetch('/api/users/verify-password', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         currentPassword: currentPassword
@@ -839,6 +925,7 @@ async function handlePasswordFormSubmit() {
   try {
     const response = await fetch('/api/users/update-profile', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         password: newPassword,
@@ -849,7 +936,7 @@ async function handlePasswordFormSubmit() {
     const data = await response.json();
 
     if (data.success) {
-      alert('Mot de passe modifié avec succès!');
+      showProfileMessage('Mot de passe modifié avec succès!', 'info');
       hidePasswordChangeForm();
       // Re-login may be required
       setTimeout(() => {
@@ -996,13 +1083,14 @@ function cancelProfilePictureChange() {
 
 async function savePictureOnly() {
   if (!croppedImageData) {
-    alert('Aucune image à enregistrer');
+    showProfileMessage('Aucune image à enregistrer', 'error');
     return;
   }
 
   try {
     const response = await fetch('/api/users/upload-profile-picture', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         profilePictureData: croppedImageData
@@ -1012,7 +1100,7 @@ async function savePictureOnly() {
     const data = await response.json();
 
     if (data.success) {
-      alert('Photo de profil mise à jour avec succès!');
+      showProfileMessage('Photo de profil mise à jour avec succès!', 'info');
       
       // Reset
       croppedImageData = null;
@@ -1021,16 +1109,16 @@ async function savePictureOnly() {
       document.getElementById('pictureActionButtons').classList.add('hidden');
       document.getElementById('uploadPhotoLabel').classList.remove('hidden');
       
-      // Reload to see the new picture
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // Refresh displayed profile pictures immediately
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+      const userId = (currentUser && currentUser.id) || (user && user.id) || (data.data && data.data.userId);
+      if (userId) refreshProfilePics(userId);
     } else {
-      alert('Erreur: ' + (data.message || 'Impossible de mettre à jour la photo'));
+      showProfileMessage('Erreur: ' + (data.message || 'Impossible de mettre à jour la photo'), 'error');
     }
   } catch (error) {
     console.error('Erreur sauvegarde photo:', error);
-    alert('Erreur lors de la sauvegarde de la photo');
+    showProfileMessage('Erreur lors de la sauvegarde de la photo', 'error');
   }
 }
 

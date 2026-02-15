@@ -147,29 +147,40 @@ class UserController {
   // Get profile picture
   static async getProfilePicture(req, res) {
     try {
-      let profilePicture = await UserService.getProfilePicture(req.params.id);
+      const pic = await UserService.getProfilePicture(req.params.id);
 
-      // Convert Buffer to string if needed (LONGBLOB returns Buffer)
-      if (Buffer.isBuffer(profilePicture)) {
-        profilePicture = profilePicture.toString('utf8');
+      // pic: { data: Buffer|string, name: string|null }
+      if (!pic || !pic.data) {
+        return res.status(404).json({ success: false, message: 'Profile picture not found' });
       }
 
-      if (profilePicture && profilePicture.startsWith('data:image')) {
-        // Base64 image - extract and send as image
+      // If stored as Buffer of raw image bytes, send directly
+      if (Buffer.isBuffer(pic.data)) {
+        const ext = pic.name || 'jpeg';
+        res.set('Content-Type', `image/${ext}`);
+        // Disable caching so updated images appear immediately
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        return res.send(pic.data);
+      }
+
+      // If stored as string (e.g. data URL), handle as before
+      let profilePicture = pic.data;
+      if (typeof profilePicture === 'string' && profilePicture.startsWith('data:image')) {
         const matches = profilePicture.match(/^data:image\/(\w+);base64,(.+)$/);
         if (matches) {
           const imageBuffer = Buffer.from(matches[2], 'base64');
           res.set('Content-Type', `image/${matches[1]}`);
-          res.set('Cache-Control', 'public, max-age=3600');
-          res.send(imageBuffer);
-          return;
+          // Disable caching for data-url images too
+          res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+          res.set('Pragma', 'no-cache');
+          res.set('Expires', '0');
+          return res.send(imageBuffer);
         }
       }
 
-      res.status(404).json({
-        success: false,
-        message: 'Profile picture not found'
-      });
+      res.status(404).json({ success: false, message: 'Profile picture not found' });
     } catch (error) {
       res.status(404).json({
         success: false,

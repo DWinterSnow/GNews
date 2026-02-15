@@ -103,11 +103,11 @@ class UserService {
   // Get profile picture
   static async getProfilePicture(userId) {
     try {
-      const profilePicture = await UserModel.getProfilePicture(userId);
-      if (!profilePicture) {
+      const pic = await UserModel.getProfilePicture(userId);
+      if (!pic || !pic.data) {
         throw new Error('Profile picture not found');
       }
-      return profilePicture;
+      return pic;
     } catch (error) {
       throw error;
     }
@@ -133,8 +133,31 @@ class UserService {
         throw new Error('Missing required parameters for profile picture update');
       }
 
-      const result = await UserModel.updateProfilePicture(userId, profilePicture, profilePictureThumbnail);
-      
+      // If profilePicture is a data URL string, decode it to binary Buffer and extract name
+      let picData = profilePicture;
+      let thumbData = profilePictureThumbnail;
+      let name = null;
+
+      if (typeof profilePicture === 'string' && profilePicture.startsWith('data:image')) {
+        const matches = profilePicture.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (matches) {
+          const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+          name = ext;
+          picData = Buffer.from(matches[2], 'base64');
+          thumbData = picData; // thumbnail is same binary for now
+        }
+      }
+
+      // Use model to update; model will accept Buffer values
+      const result = await UserModel.updateProfilePicture(userId, picData, thumbData);
+
+      // If we decoded a name, update profile_picture_name in DB
+      if (name) {
+        const pool = require('../config/db');
+        const query = 'UPDATE users SET profile_picture_name = ? WHERE id = ?';
+        await pool.execute(query, [name, userId]);
+      }
+
       if (result.affectedRows === 0) {
         throw new Error('Failed to update profile picture. User not found');
       }
@@ -303,13 +326,29 @@ class UserService {
         await UserModel.updatePassword(userId, hashedPassword);
       }
 
-      // Update profile information
+      // If profilePictureData is a data URL, decode and pass object {data, name}
+      let profilePictureForModel = null;
+      if (profilePictureData) {
+        if (typeof profilePictureData === 'string' && profilePictureData.startsWith('data:image')) {
+          const m = profilePictureData.match(/^data:image\/(\w+);base64,(.+)$/);
+          if (m) {
+            const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+            const buf = Buffer.from(m[2], 'base64');
+            profilePictureForModel = { data: buf, name: ext };
+          }
+        } else if (typeof profilePictureData === 'object' && profilePictureData.data) {
+          profilePictureForModel = profilePictureData;
+        } else {
+          profilePictureForModel = profilePictureData;
+        }
+      }
+
       await UserModel.updateProfile(
         userId,
         username || userQuery.username,
         age || null,
         country || null,
-        profilePictureData || null
+        profilePictureForModel
       );
 
       // Get updated user data
