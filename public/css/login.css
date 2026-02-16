@@ -333,15 +333,15 @@ body {
     justify-content: center;
     z-index: 10000;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
 }
 
-.loading-overlay:not(.hidden) {
+.loading-overlay.active {
     opacity: 1;
-}
-
-.loading-overlay.hidden {
-    display: none;
+    visibility: visible;
+    pointer-events: all;
 }
 
 .loading-overlay-content {

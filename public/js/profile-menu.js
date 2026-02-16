@@ -87,9 +87,29 @@ document.addEventListener('DOMContentLoaded', () => {
   if (confirmLogout) {
     confirmLogout.onclick = async () => {
       logoutModal.classList.add('hidden');
+
+      // Show logout loading overlay
+      const logoutOverlay = document.getElementById('logoutOverlay');
+      const logoutOverlayText = document.getElementById('logoutOverlayText');
+      if (logoutOverlay) {
+        // Get username for personalized message
+        const userSession = sessionStorage.getItem('user');
+        let username = '';
+        try {
+          if (userSession) username = JSON.parse(userSession).username || '';
+        } catch(e) {}
+        if (username) {
+          logoutOverlayText.innerHTML = `Au revoir <span class="logout-username">${username}</span> ! Déconnexion...`;
+        }
+        void logoutOverlay.offsetHeight;
+        logoutOverlay.classList.add('active');
+      }
+
       if (typeof logoutUser === 'function') {
         await logoutUser();
-        window.location.reload();
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 1500);
       }
     };
   }

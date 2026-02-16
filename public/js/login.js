@@ -737,7 +737,9 @@ async function handleLogin(event) {
       const overlayText = document.getElementById('loadingOverlayText');
       if (overlay) {
         overlayText.innerHTML = `Bienvenue <span class="loading-username">${result.user.username || ''}</span> ! Redirection...`;
-        overlay.classList.remove('hidden');
+        // Force reflow then activate for smooth transition
+        void overlay.offsetHeight;
+        overlay.classList.add('active');
       }
       
       // Show success message
@@ -807,7 +809,9 @@ async function handleRegister(event) {
       const overlayText = document.getElementById('loadingOverlayText');
       if (overlay) {
         overlayText.innerHTML = `Compte créé ! Bienvenue <span class="loading-username">${registrationData.username}</span>. Redirection...`;
-        overlay.classList.remove('hidden');
+        // Force reflow then activate for smooth transition
+        void overlay.offsetHeight;
+        overlay.classList.add('active');
       }
       
       document.getElementById('step3Success').textContent = `Compte cree! Bienvenue ${registrationData.username}. Redirection...`;
