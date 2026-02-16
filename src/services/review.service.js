@@ -38,12 +38,12 @@ class ReviewService {
       const reviews = await ReviewModel.getReviewsByGame(gameId);
       const stats = await ReviewModel.getAverageRating(gameId);
 
-      // Convert profile_picture_thumbnail Buffer to string for JSON serialization
+      // Convert profile_picture_thumbnail Buffer to base64 data URI for JSON serialization
       const processedReviews = reviews.map(r => {
         const review = { ...r };
         if (review.profile_picture_thumbnail) {
           if (Buffer.isBuffer(review.profile_picture_thumbnail)) {
-            review.profile_picture_thumbnail = review.profile_picture_thumbnail.toString('utf8');
+            review.profile_picture_thumbnail = 'data:image/jpeg;base64,' + review.profile_picture_thumbnail.toString('base64');
           }
         }
         return review;

@@ -282,7 +282,7 @@ async function loadGameDetails(gameId) {
                         dbId: r.id, // keep the DB id for API calls
                         userId: r.user_id,
                         userName: r.username || 'Utilisateur',
-                        userAvatar: r.profile_picture_thumbnail || null,
+                        userAvatar: r.profile_picture_thumbnail || `/api/users/profile-picture/${r.user_id}`,
                         rating: r.rating,
                         ownGame: false,
                         recommend: r.rating >= 4,
@@ -471,7 +471,14 @@ function displayGameDetails(game) {
         const paragraphs = game.description_raw.split('\n\n');
         description.innerHTML = paragraphs
             .filter(p => p.trim() !== '')
-            .map(p => `<p class="description-paragraph">${p.trim()}</p>`)
+            .map(p => {
+                const escaped = p.trim()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+                return `<p class="description-paragraph">${escaped}</p>`;
+            })
             .join('');
     } else {
         description.innerHTML = '<p class="description-paragraph">Aucune description disponible pour ce jeu.</p>';
