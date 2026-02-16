@@ -95,11 +95,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load news for search functionality
 async function loadNewsForSearch() {
     try {
+        // Check cache first
+        const cached = GNewsCache.get(GNewsCache.keys.news());
+        if (cached && Array.isArray(cached)) {
+            window.allNews = cached;
+            console.log(`✅ Loaded ${cached.length} news articles (cache)`);
+            return;
+        }
+
         const response = await fetch('/api/news');
         if (response.ok) {
             const data = await response.json();
             if (Array.isArray(data)) {
                 window.allNews = data;
+                GNewsCache.set(GNewsCache.keys.news(), data, GNewsCache.DURATIONS.NEWS);
                 console.log(`✅ Loaded ${data.length} news articles`);
             }
         }
@@ -111,6 +120,13 @@ async function loadNewsForSearch() {
 // Test de l'API RAWG au démarrage
 async function testRAWGAPI() {
     try {
+        // Check cache
+        const cached = GNewsCache.get(GNewsCache.keys.rawgStatus());
+        if (cached) {
+            console.log('✅ API RAWG (cache):', cached.message || 'OK');
+            return;
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
         
@@ -122,6 +138,7 @@ async function testRAWGAPI() {
         
         if (response.ok) {
             const data = await response.json();
+            GNewsCache.set(GNewsCache.keys.rawgStatus(), data, GNewsCache.DURATIONS.RAWG_STATUS);
             console.log('✅ API RAWG:', data.message || 'OK');
         } else {
             console.warn('⚠️ API RAWG: statut', response.status);
@@ -149,6 +166,23 @@ async function loadGenres() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
     
     try {
+        // Check cache first
+        const cached = GNewsCache.get(GNewsCache.keys.genres());
+        if (cached && cached.results) {
+            const genreSelect = document.getElementById('genreFilter');
+            if (genreSelect) {
+                cached.results.forEach(genre => {
+                    const option = document.createElement('option');
+                    option.value = genre.id;
+                    option.textContent = genre.name;
+                    genreSelect.appendChild(option);
+                });
+                console.log(`✅ ${cached.results.length} genres chargés (cache)`);
+            }
+            clearTimeout(timeoutId);
+            return;
+        }
+
         const response = await fetch('/api/genres', {
             signal: controller.signal
         });
@@ -170,6 +204,7 @@ async function loadGenres() {
                 genreSelect.appendChild(option);
             });
             console.log(`✅ ${data.results.length} genres chargés`);
+            GNewsCache.set(GNewsCache.keys.genres(), data, GNewsCache.DURATIONS.GENRES);
         }
     } catch (error) {
         clearTimeout(timeoutId);

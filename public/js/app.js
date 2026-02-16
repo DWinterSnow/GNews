@@ -84,6 +84,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Tester l'API
 async function testAPI() {
     try {
+        // Check cache first
+        const cached = GNewsCache.get(GNewsCache.keys.rawgStatus());
+        if (cached) {
+            console.log('✅ API RAWG (cache):', cached.message);
+            return;
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
@@ -97,6 +104,7 @@ async function testAPI() {
         if (data.success) {
             console.log('✅ API RAWG:', data.message);
             console.log('📊 Jeux disponibles:', data.total_games);
+            GNewsCache.set(GNewsCache.keys.rawgStatus(), data, GNewsCache.DURATIONS.RAWG_STATUS);
         } else {
             console.error('❌ Échec du test API:', data.error);
         }
@@ -222,6 +230,17 @@ async function filterByPlatform(platform) {
 // Charger les articles en vedette (3 dernières actualités)
 async function loadFeaturedGames() {
     try {
+        // Check cache first
+        const cached = GNewsCache.get(GNewsCache.keys.news());
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+            const articlesWithImages = cached.filter(a => a.image && a.image.startsWith('http'));
+            const topArticles = articlesWithImages.slice(0, 3);
+            if (topArticles.length > 0) {
+                displayFeaturedArticles(topArticles);
+                return;
+            }
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
         
@@ -240,6 +259,8 @@ async function loadFeaturedGames() {
         const data = await response.json();
         
         if (Array.isArray(data) && data.length > 0) {
+            // Cache the news data
+            GNewsCache.set(GNewsCache.keys.news(), data, GNewsCache.DURATIONS.NEWS);
             // Filtrer les articles avec une image valide, puis prendre les 3 plus récents
             const articlesWithImages = data.filter(a => a.image && a.image.startsWith('http'));
             const topArticles = articlesWithImages.slice(0, 3);
@@ -309,6 +330,20 @@ async function loadGames(type) {
 
     try {
         console.log('📥 Chargement des jeux:', type);
+        
+        // Check cache first
+        const cacheKey = type === 'trending' ? GNewsCache.keys.gamesTrending() :
+                         type === 'upcoming' ? GNewsCache.keys.gamesUpcoming() :
+                         GNewsCache.keys.gamesNewReleases();
+        const cached = GNewsCache.get(cacheKey);
+        if (cached && cached.results && cached.results.length > 0) {
+            allGames[type] = cached.results;
+            console.log(`✅ ${type} (cache):`, cached.results.length);
+            displayGames(cached.results, type);
+            isLoadingGames = false;
+            return;
+        }
+
         const response = await fetch(endpoints[type], {
             signal: controller.signal
         });
@@ -325,6 +360,8 @@ async function loadGames(type) {
         if (data.results && data.results.length > 0) {
             allGames[type] = data.results;
             console.log(`✅ ${type} chargés:`, data.results.length);
+            // Cache the results
+            GNewsCache.set(cacheKey, data, GNewsCache.DURATIONS.GAMES_LIST);
             displayGames(data.results, type);
         } else {
             console.warn(`⚠️ Aucun jeu trouvé pour ${type}`);
@@ -447,6 +484,21 @@ async function loadNews() {
     
     try {
         console.log('📰 Chargement de TOUS les articles...');
+        
+        // Check cache first
+        const cached = GNewsCache.get(GNewsCache.keys.news());
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+            allNews = cached.map(article => ({
+                ...article,
+                detectedCategory: detectArticleCategory(article)
+            }));
+            console.log(`✅ ${allNews.length} articles (cache)`);
+            displayedNewsCount = 30;
+            displayNews();
+            isLoadingNews = false;
+            return;
+        }
+
         const response = await fetch('/api/news', {
             signal: controller.signal,
             headers: { 'Accept': 'application/json' }
@@ -463,6 +515,9 @@ async function loadNews() {
         if (!Array.isArray(data)) {
             throw new Error('Format de données invalide');
         }
+        
+        // Cache the news
+        GNewsCache.set(GNewsCache.keys.news(), data, GNewsCache.DURATIONS.NEWS);
         
         allNews = data.map(article => ({
             ...article,
@@ -655,12 +710,26 @@ async function performSearch() {
 async function searchGamesFromAPI(query, existingNews = []) {
     try {
         console.log('🌐 Recherche API RAWG pour:', query);
+        
+        // Check cache
+        const cacheKey = GNewsCache.keys.gameSearch(query);
+        const cached = GNewsCache.get(cacheKey);
+        if (cached && cached.results && cached.results.length > 0) {
+            console.log(`✅ ${cached.results.length} jeux trouvés (cache)`);
+            const modal = document.getElementById('searchModal');
+            if (modal && modal.style.display === 'flex') {
+                showSearchResults(cached.results, existingNews || [], query);
+            }
+            return;
+        }
+
         const response = await fetch(`/api/games/search?query=${encodeURIComponent(query)}`);
         if (!response.ok) throw new Error('API search failed');
         
         const data = await response.json();
         if (data.results && data.results.length > 0) {
             console.log(`✅ ${data.results.length} jeux trouvés via API`);
+            GNewsCache.set(cacheKey, data, GNewsCache.DURATIONS.SEARCH);
             const modal = document.getElementById('searchModal');
             if (modal && modal.style.display === 'flex') {
                 // Merge with existing news from modal

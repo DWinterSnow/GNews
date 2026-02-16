@@ -96,16 +96,25 @@ async function createGameCard(fav) {
     </div>
   `;
 
-  // Load game image asynchronously
+  // Load game image asynchronously (with cache)
   const imgEl = item.querySelector('.library-game-icon img');
-  fetch(`/api/games/${fav.game_id}`)
-    .then(r => r.ok ? r.json() : null)
-    .then(game => {
-      if (game && game.background_image) {
-        imgEl.src = game.background_image;
-      }
-    })
-    .catch(() => {});
+  const gameCacheKey = GNewsCache.keys.gameDetail(fav.game_id);
+  const cachedGame = GNewsCache.get(gameCacheKey);
+  if (cachedGame && cachedGame.background_image) {
+    imgEl.src = cachedGame.background_image;
+  } else {
+    fetch(`/api/games/${fav.game_id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(game => {
+        if (game) {
+          GNewsCache.set(gameCacheKey, game, GNewsCache.DURATIONS.GAME_DETAIL);
+          if (game.background_image) {
+            imgEl.src = game.background_image;
+          }
+        }
+      })
+      .catch(() => {});
+  }
 
   // Click to select this game and filter news
   item.addEventListener('click', () => {
@@ -197,14 +206,22 @@ async function loadNewsForFollowedGames() {
 
   allNews = [];
 
-  // Fetch news for each followed game in parallel
+  // Fetch news for each followed game in parallel (with cache)
   const promises = followedGames.map(async (fav) => {
     const gameTitle = fav.game_title || '';
     if (!gameTitle) return [];
     try {
+      // Check cache first
+      const cacheKey = GNewsCache.keys.newsForGame(gameTitle);
+      const cached = GNewsCache.get(cacheKey);
+      if (cached && Array.isArray(cached)) {
+        return cached;
+      }
+
       const response = await fetch(`/api/news/game/${encodeURIComponent(gameTitle)}`);
       if (response.ok) {
         const articles = await response.json();
+        GNewsCache.set(cacheKey, articles, GNewsCache.DURATIONS.GAME_NEWS);
         return articles;
       }
     } catch (e) {

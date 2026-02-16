@@ -89,12 +89,27 @@ async function loadGamesForSearch() {
             recent: '/api/games/new-releases?page_size=50'
         };
         
+        const cacheKeys = {
+            trending: GNewsCache.keys.gamesTrending(),
+            upcoming: GNewsCache.keys.gamesUpcoming(),
+            recent: GNewsCache.keys.gamesNewReleases()
+        };
+        
         for (const [type, url] of Object.entries(endpoints)) {
+            // Check cache first
+            const cached = GNewsCache.get(cacheKeys[type]);
+            if (cached && cached.results) {
+                window.allGames[type] = cached.results;
+                console.log(`✅ Loaded ${cached.results.length} ${type} games (cache)`);
+                continue;
+            }
+
             const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 if (data.results) {
                     window.allGames[type] = data.results;
+                    GNewsCache.set(cacheKeys[type], data, GNewsCache.DURATIONS.GAMES_LIST);
                     console.log(`✅ Loaded ${data.results.length} ${type} games`);
                 }
             }
@@ -140,6 +155,20 @@ async function loadAllNews() {
     try {
         console.log('📥 Chargement de toutes les actualités...');
         
+        // Check cache first
+        const cached = GNewsCache.get(GNewsCache.keys.news());
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+            window.allNews = cached.map(article => ({
+                ...article,
+                detectedCategory: detectArticleCategory(article)
+            }));
+            console.log(`✅ ${window.allNews.length} articles (cache)`);
+            updateStats();
+            applyFilters();
+            isLoading = false;
+            return;
+        }
+
         const response = await fetch('/api/news', {
             signal: controller.signal,
             headers: {
@@ -160,6 +189,9 @@ async function loadAllNews() {
         if (!Array.isArray(data)) {
             throw new Error('Format de données invalide (attendu: array)');
         }
+        
+        // Cache the news data
+        GNewsCache.set(GNewsCache.keys.news(), data, GNewsCache.DURATIONS.NEWS);
         
         window.allNews = data.map(article => ({
             ...article,
@@ -203,6 +235,9 @@ async function refreshNews() {
     }
     
     try {
+        // Clear news cache before refresh
+        GNewsCache.remove(GNewsCache.keys.news());
+        
         // Forcer le rafraîchissement côté serveur
         const refreshResponse = await fetch('/api/news/refresh', {
             headers: { 'Accept': 'application/json' }

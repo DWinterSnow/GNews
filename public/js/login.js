@@ -732,6 +732,14 @@ async function handleLogin(event) {
     const result = await loginUser(email, password);
     
     if (result.success) {
+      // Show full-page loading overlay
+      const overlay = document.getElementById('loadingOverlay');
+      const overlayText = document.getElementById('loadingOverlayText');
+      if (overlay) {
+        overlayText.innerHTML = `Bienvenue <span class="loading-username">${result.user.username || ''}</span> ! Redirection...`;
+        overlay.classList.remove('hidden');
+      }
+      
       // Show success message
       document.getElementById('loginSuccess').textContent = 'Connexion réussie! Redirection...';
       
@@ -794,6 +802,14 @@ async function handleRegister(event) {
     );
     
     if (result.success) {
+      // Show full-page loading overlay
+      const overlay = document.getElementById('loadingOverlay');
+      const overlayText = document.getElementById('loadingOverlayText');
+      if (overlay) {
+        overlayText.innerHTML = `Compte créé ! Bienvenue <span class="loading-username">${registrationData.username}</span>. Redirection...`;
+        overlay.classList.remove('hidden');
+      }
+      
       document.getElementById('step3Success').textContent = `Compte cree! Bienvenue ${registrationData.username}. Redirection...`;
       
       // Save credentials before clearing

@@ -59,6 +59,35 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 -- ============================================
+-- Table des articles (actualités persistantes)
+-- ============================================
+CREATE TABLE IF NOT EXISTS articles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(500) NOT NULL,
+  title_hash VARCHAR(64) NOT NULL,
+  description TEXT,
+  url VARCHAR(1000),
+  image VARCHAR(1000),
+  source VARCHAR(50) NOT NULL,
+  author VARCHAR(255),
+  category VARCHAR(50) DEFAULT 'article',
+  published_at DATETIME NOT NULL,
+  keywords VARCHAR(500),
+  game_title VARCHAR(255),
+  publisher VARCHAR(255),
+  developer VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_article (title_hash),
+  INDEX idx_published_at (published_at),
+  INDEX idx_source (source),
+  INDEX idx_category (category),
+  INDEX idx_game_title (game_title),
+  INDEX idx_publisher (publisher),
+  INDEX idx_developer (developer),
+  INDEX idx_created_at (created_at)
+);
+
+-- ============================================
 -- [MERGED from add_profile_picture.sql]
 -- Profile Picture Support
 -- ============================================

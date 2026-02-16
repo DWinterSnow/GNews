@@ -48,14 +48,21 @@ function saveGameComments(gameId, comments) {
     }
 }
 
-// Charger les commentaires d'un jeu
+// Charger les commentaires d'un jeu (filtre les anciens commentaires mock)
 function loadGameComments(gameId) {
     try {
         const saved = localStorage.getItem(STORAGE_KEYS.COMMENTS + gameId);
         if (saved) {
             const comments = JSON.parse(saved);
-            console.log(`✅ ${comments.length} commentaires chargés pour le jeu ${gameId}`);
-            return comments;
+            // Filter out old mock comments
+            const realComments = comments.filter(c => !String(c.id).startsWith('mock_'));
+            if (realComments.length !== comments.length) {
+                // Re-save without mock comments
+                saveGameComments(gameId, realComments);
+                console.log(`🧹 Supprimé ${comments.length - realComments.length} commentaires fictifs pour le jeu ${gameId}`);
+            }
+            console.log(`✅ ${realComments.length} commentaires chargés pour le jeu ${gameId}`);
+            return realComments;
         }
         return [];
     } catch (error) {
@@ -247,14 +254,25 @@ async function loadGameDetails(gameId) {
     showLoading();
     
     try {
-        const response = await fetch(`/api/games/${gameId}`);
+        // Check cache first
+        const cacheKey = GNewsCache.keys.gameDetail(gameId);
+        const cached = GNewsCache.get(cacheKey);
+        let game;
         
-        if (!response.ok) {
-            throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+        if (cached) {
+            game = cached;
+            console.log('✅ Jeu chargé (cache):', game.name);
+        } else {
+            const response = await fetch(`/api/games/${gameId}`);
+            
+            if (!response.ok) {
+                throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+            }
+            
+            game = await response.json();
+            console.log('✅ Jeu chargé:', game.name);
+            GNewsCache.set(cacheKey, game, GNewsCache.DURATIONS.GAME_DETAIL);
         }
-        
-        const game = await response.json();
-        console.log('✅ Jeu chargé:', game.name);
         
         currentGame = game;
         await loadGameScreenshots(gameId);
@@ -310,13 +328,9 @@ async function loadGameDetails(gameId) {
             console.warn('Could not fetch reviews from API:', e);
         }
         
-        // If no real reviews, load from localStorage (mock fallback)
+        // If no real reviews, load any real user comments from localStorage only
         if (gameComments.length === 0 && !currentUserReview) {
             gameComments = loadGameComments(gameId);
-            if (gameComments.length === 0) {
-                gameComments = generateMockComments();
-                saveGameComments(gameId, gameComments);
-            }
         }
         
         // Initialize comments section

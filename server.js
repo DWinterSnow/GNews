@@ -10,6 +10,7 @@ const session = require('express-session');
 // Import database & routes
 const pool = require('./src/config/db');
 const userRoutes = require('./src/routes/user.routes');
+const ArticleService = require('./src/services/article.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,9 +42,47 @@ const newsCache = {
 };
 
 // Middleware
-app.use(express.static('public'));
+// Static files with cache headers (CSS, JS, images cached for 1 day; HTML for 1 hour)
+app.use(express.static('public', {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day
+    } else if (filePath.match(/\.(jpg|jpeg|png|gif|webp|svg|ico|avif)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=2592000'); // 30 days
+    } else if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour
+    }
+  }
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// API cache headers middleware
+app.use('/api', (req, res, next) => {
+  // Only cache GET requests
+  if (req.method !== 'GET') {
+    res.setHeader('Cache-Control', 'no-store');
+    return next();
+  }
+  
+  // Never cache auth/user endpoints
+  if (req.path.startsWith('/users/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    return next();
+  }
+  
+  // Cache API data responses
+  if (req.path === '/news' || req.path.startsWith('/news/game/')) {
+    res.setHeader('Cache-Control', 'public, max-age=600, stale-while-revalidate=300'); // 10min + 5min stale
+  } else if (req.path.startsWith('/games/') || req.path === '/genres') {
+    res.setHeader('Cache-Control', 'public, max-age=900, stale-while-revalidate=600'); // 15min + 10min stale
+  } else if (req.path === '/test-rawg') {
+    res.setHeader('Cache-Control', 'public, max-age=1800'); // 30min
+  }
+  
+  next();
+});
 
 // Session
 app.use(session({
@@ -924,6 +963,14 @@ async function refreshNewsCache() {
   console.log(`Cache valide: 6 heures`);
   console.log('═══════════════════════════════════════════════\n');
   
+  // ========== PERSISTENCE: Save to database ==========
+  try {
+    const dbResult = await ArticleService.saveArticles(uniqueArticles);
+    console.log(`💾 Base de données: ${dbResult.inserted} nouveaux articles, ${dbResult.skipped} déjà existants`);
+  } catch (dbError) {
+    console.error('⚠️ Erreur sauvegarde DB (le cache RAM reste disponible):', dbError.message);
+  }
+  
   return uniqueArticles;
 }
 
@@ -936,13 +983,45 @@ app.get('/api/news', async (req, res) => {
       await refreshNewsCache();
     } else {
       const age = Math.floor((now - newsCache.timestamp) / 1000 / 60);
-      console.log(`${newsCache.allArticles.length} articles servis depuis le cache (âge: ${age} min)`);
+      console.log(`${newsCache.allArticles.length} articles en cache RAM (âge: ${age} min)`);
     }
     
-    res.json(newsCache.allArticles);
+    // Merge: RAM cache (fresh) + DB (historic), deduplicated
+    let allArticles = [...newsCache.allArticles];
+    
+    try {
+      const dbArticles = await ArticleService.getAllArticles(1000);
+      const seenTitles = new Set(allArticles.map(a => a.title.toLowerCase().trim()));
+      
+      for (const dbArticle of dbArticles) {
+        const normalizedTitle = dbArticle.title.toLowerCase().trim();
+        if (!seenTitles.has(normalizedTitle)) {
+          seenTitles.add(normalizedTitle);
+          allArticles.push(dbArticle);
+        }
+      }
+      
+      // Sort by date
+      allArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      console.log(`📊 Total servi: ${allArticles.length} articles (${newsCache.allArticles.length} cache + ${dbArticles.length} DB)`);
+    } catch (dbError) {
+      console.warn('⚠️ DB indisponible, articles servis depuis le cache RAM uniquement:', dbError.message);
+    }
+    
+    res.json(allArticles);
     
   } catch (error) {
     console.error('Erreur actualités:', error);
+    
+    // Fallback: try to serve from DB even if cache refresh failed
+    try {
+      const dbArticles = await ArticleService.getAllArticles(1000);
+      if (dbArticles.length > 0) {
+        console.log(`🔄 Fallback DB: ${dbArticles.length} articles`);
+        return res.json(dbArticles);
+      }
+    } catch (e) { /* ignore */ }
+    
     res.status(500).json({ 
       error: 'Erreur lors de la récupération des actualités',
       details: error.message
@@ -953,11 +1032,13 @@ app.get('/api/news', async (req, res) => {
 app.get('/api/news/refresh', async (req, res) => {
   try {
     await refreshNewsCache();
+    const dbStats = await ArticleService.getStats();
     res.json({ 
       success: true, 
-      message: 'Cache rafraîchi avec succès',
+      message: 'Cache rafraîchi et articles sauvegardés en base',
       stats: newsCache.stats,
-      totalArticles: newsCache.allArticles.length
+      totalArticles: newsCache.allArticles.length,
+      database: dbStats
     });
   } catch (error) {
     res.status(500).json({ 
@@ -967,10 +1048,15 @@ app.get('/api/news/refresh', async (req, res) => {
   }
 });
 
-app.get('/api/news/status', (req, res) => {
+app.get('/api/news/status', async (req, res) => {
   const now = Date.now();
   const age = now - newsCache.timestamp;
   const remaining = Math.max(0, newsCache.duration - age);
+  
+  let dbStats = { total: 0, bySource: {} };
+  try {
+    dbStats = await ArticleService.getStats();
+  } catch (e) { /* ignore */ }
   
   res.json({
     cached: newsCache.allArticles.length > 0,
@@ -980,7 +1066,9 @@ app.get('/api/news/status', (req, res) => {
     cacheRemaining: Math.floor(remaining / 1000 / 60) + ' minutes',
     cacheDuration: '6 heures',
     nextRefresh: new Date(newsCache.timestamp + newsCache.duration).toLocaleString('fr-FR'),
-    lastUpdate: new Date(newsCache.timestamp).toLocaleString('fr-FR')
+    lastUpdate: new Date(newsCache.timestamp).toLocaleString('fr-FR'),
+    database: dbStats,
+    scheduler: '6 heures (automatique)',
   });
 });
 
@@ -1007,7 +1095,7 @@ app.get('/api/news/game/:gameName', async (req, res) => {
       // Acronym from first letters
       const acronym = words.filter(w => !/^(v|vi|vii|viii|ix|x|xi|xii|[0-9]+|the|of|and|for|in|on|at|to)$/i.test(w))
                            .map(w => w[0]).join('').toUpperCase();
-      if (acronym.length >= 2) {
+      if (acronym.length >= 3) {
         // Version suffix
         const lastWord = words[words.length - 1];
         const isVersion = /^(v|vi|vii|viii|ix|x|xi|xii|[0-9]+)$/i.test(lastWord);
@@ -1030,7 +1118,7 @@ app.get('/api/news/game/:gameName', async (req, res) => {
     }
 
     // Unique, lowercase abbreviations
-    const uniqueAbbrevs = [...new Set(abbreviations.map(a => a.toLowerCase()))].filter(a => a.length >= 2 && a.toLowerCase() !== lowerName);
+    const uniqueAbbrevs = [...new Set(abbreviations.map(a => a.toLowerCase()))].filter(a => a.length >= 3 && a.toLowerCase() !== lowerName);
 
     // ---- Matching function ----
     const stopWords = ['the', 'and', 'for', 'with', 'from', 'that', 'this', 'game', 'edition', 'complete', 'ultimate', 'deluxe', 'remastered'];
@@ -1048,8 +1136,11 @@ app.get('/api/news/game/:gameName', async (req, res) => {
         const regex = new RegExp(`\\b${abbr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
         if (regex.test(lower)) return true;
       }
-      // ALL significant words appear
-      if (significantWords.length >= 2 && significantWords.every(w => lower.includes(w))) return true;
+      // ALL significant words appear (with word boundaries)
+      if (significantWords.length >= 2 && significantWords.every(w => {
+        const wRegex = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        return wRegex.test(lower);
+      })) return true;
       // Single significant word with word boundary
       if (significantWords.length === 1 && significantWords[0].length >= 5) {
         const regex = new RegExp(`\\b${significantWords[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
@@ -1114,6 +1205,24 @@ app.get('/api/news/game/:gameName', async (req, res) => {
       });
     }
 
+    // ---- Search in database for historic articles ----
+    try {
+      const dbArticles = await ArticleService.getArticlesForGame(trimmedName, 30);
+      dbArticles.forEach(article => {
+        // DB now uses exact match on game_title, publisher, developer
+        // Double-check: verify the game name actually appears in title/description OR exact metadata match
+        const exactMetaMatch = (article.gameName && article.gameName.toLowerCase() === lowerName) ||
+                               (article.publisher && article.publisher.toLowerCase() === lowerName) ||
+                               (article.developer && article.developer.toLowerCase() === lowerName);
+        if (exactMetaMatch || textMentionsGame(article.title) || textMentionsGame(article.description)) {
+          articles.push({ ...article, gameName: gameName });
+        }
+      });
+    } catch (dbError) {
+      // DB search failed, continue with what we have
+      console.warn('⚠️ Recherche DB articles pour jeu échouée:', dbError.message);
+    }
+
     // ---- Deduplicate by title similarity ----
     const seen = new Set();
     const unique = articles.filter(a => {
@@ -1162,12 +1271,50 @@ app.listen(PORT, async () => {
   console.log(`   - Guardian: ~50 articles`);
   console.log(`Capacité totale: ~1000 articles`);
   console.log(`Cache: 6 heures`);
+  console.log(`📦 Persistance: MySQL`);
+  console.log(`⏰ Scheduler: Récupération automatique toutes les 6h`);
   console.log('═══════════════════════════════════════════════');
+  
+  // Initialize articles database table
+  try {
+    const articleCount = await ArticleService.initialize();
+    console.log(`\n📦 Base de données articles initialisée (${articleCount} articles existants)`);
+  } catch (error) {
+    console.error('⚠️ Erreur initialisation table articles:', error.message);
+  }
   
   console.log('\nPré-chargement du cache...\n');
   try {
     await refreshNewsCache();
   } catch (error) {
     console.error('Erreur lors du pré-chargement:', error.message);
+    
+    // If API fetch fails, try loading from database
+    try {
+      const dbArticles = await ArticleService.getAllArticles(1000);
+      if (dbArticles.length > 0) {
+        newsCache.allArticles = dbArticles;
+        newsCache.timestamp = Date.now();
+        console.log(`🔄 Fallback: ${dbArticles.length} articles chargés depuis la base de données`);
+      }
+    } catch (dbError) {
+      console.error('⚠️ Fallback DB également échoué:', dbError.message);
+    }
   }
+  
+  // ========== SCHEDULER: Refresh every 6 hours ==========
+  const SIX_HOURS = 6 * 60 * 60 * 1000;
+  
+  setInterval(async () => {
+    console.log('\n⏰ [SCHEDULER] Récupération automatique des articles (toutes les 6h)...');
+    try {
+      await refreshNewsCache();
+      const stats = await ArticleService.getStats();
+      console.log(`⏰ [SCHEDULER] Terminé - ${stats.total} articles en base de données`);
+    } catch (error) {
+      console.error('⏰ [SCHEDULER] Erreur:', error.message);
+    }
+  }, SIX_HOURS);
+  
+  console.log(`\n⏰ Prochain rafraîchissement automatique: ${new Date(Date.now() + SIX_HOURS).toLocaleString('fr-FR')}`);
 });
