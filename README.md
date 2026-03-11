@@ -21,23 +21,21 @@ npm install
 - À la racine du projet, créez un fichier nommé `.env` (sur votre ordinateur local) et ajoutez-y les variables suivantes en remplaçant les valeurs par les vôtres :
 
 ```
-# Base de données
+
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=votre_mot_de_passe_mysql
 DB_NAME=gnews_db
 
-# Serveur
 PORT=3000
 NODE_ENV=development
 
-# Clés API
 RAWG_API_KEY=votre_cle_rawg
 GUARDIAN_API_KEY=votre_cle_guardian
 
-# Session
 SESSION_SECRET=votre_secret_de_session
+
 ```
 
 - Important : ne commitez jamais votre `.env` contenant de vraies clés ou mots de passe.
@@ -84,8 +82,3 @@ Fichiers importants
 - [server.js](server.js)
 - [database.sql](database.sql)
 - Les fichiers statiques sont dans le dossier `public/` (vérifier `public/index.html`).
-
-Si vous voulez, je peux :
-- ajouter un `.env.example` si vous ne l'avez pas ;
-- commiter ces modifications pour vous.
-

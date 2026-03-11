@@ -45,12 +45,21 @@ class UserController {
       req.session.userId = result.id;
       req.session.username = result.username;
 
-      res.json({
-        success: true,
-        message: 'Login successful',
-        data: result
+      // Ensure session is saved before sending response so cookie is set reliably
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error during login:', err);
+          return res.status(500).json({ success: false, message: 'Session error' });
+        }
+
+        res.json({
+          success: true,
+          message: 'Login successful',
+          data: result
+        });
       });
     } catch (error) {
+      console.error('Login error:', error && error.stack ? error.stack : error);
       res.status(401).json({
         success: false,
         message: error.message

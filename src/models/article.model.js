@@ -67,8 +67,8 @@ class ArticleModel {
     return rows.length > 0;
   }
 
-  // Insert a single article (skip if duplicate)
-  static async insertIfNotExists(article) {
+  // Insert a single article (skip if duplicate) - with retry logic
+  static async insertIfNotExists(article, retries = 3) {
     const titleHash = this.hashTitle(article.title);
     
     const sql = `
@@ -89,7 +89,7 @@ class ArticleModel {
     const publisher = article.publisher || null;
     const developer = article.developer || null;
     
-    const [result] = await pool.query(sql, [
+    const params = [
       article.title.substring(0, 500),
       titleHash,
       (article.description || '').substring(0, 65000),
@@ -103,30 +103,59 @@ class ArticleModel {
       gameTitle ? gameTitle.substring(0, 255) : null,
       publisher ? publisher.substring(0, 255) : null,
       developer ? developer.substring(0, 255) : null
-    ]);
+    ];
     
-    return result.affectedRows > 0; // true = inserted, false = duplicate
+    let lastError;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const [result] = await pool.query(sql, params);
+        return result.affectedRows > 0; // true = inserted, false = duplicate
+      } catch (error) {
+        lastError = error;
+        // Retry on connection errors
+        if (attempt < retries && (error.code === 'PROTOCOL_CONNECTION_LOST' || 
+            error.code === 'PROTOCOL_SEQUENCE_TIMEOUT' || 
+            error.message.includes('Connection lost'))) {
+          const delayMs = 100 * attempt; // Exponential backoff: 100ms, 200ms, 300ms
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        } else {
+          throw error; // Don't retry on other errors
+        }
+      }
+    }
+    throw lastError; // All retries exhausted
   }
 
-  // Bulk insert articles (skip duplicates)
+  // Bulk insert articles (skip duplicates) - with batching to prevent pool exhaustion
   static async bulkInsert(articles) {
     let inserted = 0;
     let skipped = 0;
+    const batchSize = 5; // Process articles in batches to avoid connection pool exhaustion
     
-    for (const article of articles) {
-      try {
-        const wasInserted = await this.insertIfNotExists(article);
-        if (wasInserted) {
-          inserted++;
-        } else {
+    for (let i = 0; i < articles.length; i += batchSize) {
+      const batch = articles.slice(i, i + batchSize);
+      
+      // Process batch serially (not in parallel) to prevent connection pool exhaustion
+      for (const article of batch) {
+        try {
+          const wasInserted = await this.insertIfNotExists(article);
+          if (wasInserted) {
+            inserted++;
+          } else {
+            skipped++;
+          }
+        } catch (error) {
+          // Log but don't stop on individual article errors
+          if (!error.message.includes('Duplicate')) {
+            console.error(`   ⚠️ Erreur insertion article: ${error.message}`);
+          }
           skipped++;
         }
-      } catch (error) {
-        // Log but don't stop on individual article errors
-        if (!error.message.includes('Duplicate')) {
-          console.error(`   ⚠️ Erreur insertion article: ${error.message}`);
-        }
-        skipped++;
+      }
+      
+      // Small delay between batches to let connections recover
+      if (i + batchSize < articles.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
     

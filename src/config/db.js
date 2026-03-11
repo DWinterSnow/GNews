@@ -9,8 +9,15 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'gnews_db',
   waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+  connectionLimit: 20,  // Increased from 10
+  queueLimit: 50,      // Added queue limit to prevent indefinite waiting
+  enableKeepAlive: true,
+  keepAliveInitialDelayMs: 0,
+  connectionTimeoutMillis: 30000,
+  acquireTimeoutMillis: 30000,
+  idleTimeoutMillis: 30000,
+  maxIdle: 10,
+  minIdle: 2
 });
 
 // Test connection
