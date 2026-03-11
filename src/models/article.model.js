@@ -68,7 +68,7 @@ class ArticleModel {
   }
 
   // Insert a single article (skip if duplicate) - with retry logic
-  static async insertIfNotExists(article, retries = 3) {
+  static async insertIfNotExists(article, retries = 5) {
     const titleHash = this.hashTitle(article.title);
     
     const sql = `
@@ -109,33 +109,35 @@ class ArticleModel {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const [result] = await pool.query(sql, params);
-        return result.affectedRows > 0; // true = inserted, false = duplicate
+        return result.affectedRows > 0;
       } catch (error) {
         lastError = error;
-        // Retry on connection errors
-        if (attempt < retries && (error.code === 'PROTOCOL_CONNECTION_LOST' || 
-            error.code === 'PROTOCOL_SEQUENCE_TIMEOUT' || 
-            error.message.includes('Connection lost'))) {
-          const delayMs = 100 * attempt; // Exponential backoff: 100ms, 200ms, 300ms
+        if (attempt < retries && (
+          error.code === 'PROTOCOL_CONNECTION_LOST' || 
+          error.code === 'PROTOCOL_SEQUENCE_TIMEOUT' ||
+          error.code === 'ECONNRESET' ||
+          error.message.includes('Connection lost')
+        )) {
+          const delayMs = 500 * attempt;
+          console.log(`   🔄 Retry ${attempt}/${retries} après ${delayMs}ms...`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
         } else {
-          throw error; // Don't retry on other errors
+          throw error;
         }
       }
     }
-    throw lastError; // All retries exhausted
+    throw lastError;
   }
 
-  // Bulk insert articles (skip duplicates) - with batching to prevent pool exhaustion
+  // Bulk insert articles (skip duplicates) - optimized for remote DB
   static async bulkInsert(articles) {
     let inserted = 0;
     let skipped = 0;
-    const batchSize = 5; // Process articles in batches to avoid connection pool exhaustion
+    const batchSize = 2; // Reduced for Railway remote DB
     
     for (let i = 0; i < articles.length; i += batchSize) {
       const batch = articles.slice(i, i + batchSize);
       
-      // Process batch serially (not in parallel) to prevent connection pool exhaustion
       for (const article of batch) {
         try {
           const wasInserted = await this.insertIfNotExists(article);
@@ -145,7 +147,6 @@ class ArticleModel {
             skipped++;
           }
         } catch (error) {
-          // Log but don't stop on individual article errors
           if (!error.message.includes('Duplicate')) {
             console.error(`   ⚠️ Erreur insertion article: ${error.message}`);
           }
@@ -153,9 +154,9 @@ class ArticleModel {
         }
       }
       
-      // Small delay between batches to let connections recover
+      // Longer delay between batches for remote DB stability
       if (i + batchSize < articles.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     
@@ -164,34 +165,79 @@ class ArticleModel {
 
   // Get all articles from the database, sorted by publication date
   static async getAll(limit = 1000) {
-    const [rows] = await pool.query(
-      'SELECT * FROM articles ORDER BY published_at DESC LIMIT ?',
-      [limit]
-    );
-    return rows;
+    let retries = 3;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const [rows] = await pool.query(
+          'SELECT * FROM articles ORDER BY published_at DESC LIMIT ?',
+          [limit]
+        );
+        return rows;
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries && (error.code === 'PROTOCOL_CONNECTION_LOST' || error.message.includes('Connection lost'))) {
+          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw lastError;
   }
 
   // Get articles by source
   static async getBySource(source, limit = 100) {
-    const [rows] = await pool.query(
-      'SELECT * FROM articles WHERE source = ? ORDER BY published_at DESC LIMIT ?',
-      [source, limit]
-    );
-    return rows;
+    let retries = 3;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const [rows] = await pool.query(
+          'SELECT * FROM articles WHERE source = ? ORDER BY published_at DESC LIMIT ?',
+          [source, limit]
+        );
+        return rows;
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries && (error.code === 'PROTOCOL_CONNECTION_LOST' || error.message.includes('Connection lost'))) {
+          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw lastError;
   }
 
   // Search articles by game title, publisher, or developer (strict matching)
   static async searchByGame(gameName, limit = 30) {
     const exactTerm = gameName.trim();
-    const [rows] = await pool.query(
-      `SELECT * FROM articles 
-       WHERE game_title = ? 
-             OR publisher = ? 
-             OR developer = ?
-       ORDER BY published_at DESC LIMIT ?`,
-      [exactTerm, exactTerm, exactTerm, limit]
-    );
-    return rows;
+    let retries = 3;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const [rows] = await pool.query(
+          `SELECT * FROM articles 
+           WHERE game_title = ? 
+                 OR publisher = ? 
+                 OR developer = ?
+           ORDER BY published_at DESC LIMIT ?`,
+          [exactTerm, exactTerm, exactTerm, limit]
+        );
+        return rows;
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries && (error.code === 'PROTOCOL_CONNECTION_LOST' || error.message.includes('Connection lost'))) {
+          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw lastError;
   }
 
   // Verify a game name appears in a text using word-boundary matching
@@ -397,8 +443,23 @@ class ArticleModel {
 
   // Get article count
   static async count() {
-    const [rows] = await pool.query('SELECT COUNT(*) as total FROM articles');
-    return rows[0].total;
+    let retries = 3;
+    let lastError;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const [rows] = await pool.query('SELECT COUNT(*) as total FROM articles');
+        return rows[0].total;
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries && (error.code === 'PROTOCOL_CONNECTION_LOST' || error.message.includes('Connection lost'))) {
+          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        } else {
+          throw error;
+        }
+      }
+    }
+    throw lastError;
   }
 
   // Get stats
