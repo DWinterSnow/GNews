@@ -148,7 +148,7 @@ class ArticleModel {
           }
         } catch (error) {
           if (!error.message.includes('Duplicate')) {
-            console.error(`   ⚠️ Erreur insertion article: ${error.message}`);
+            console.error(`   Erreur insertion article: ${error.message}`);
           }
           skipped++;
         }

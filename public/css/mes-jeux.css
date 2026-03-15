@@ -8,6 +8,14 @@
     justify-content: center;
 }
 
+/* Main Content */
+.main-content {
+    overflow: hidden;
+    height: calc(100vh - 80px);
+    display: flex;
+    flex-direction: column;
+}
+
 .login-prompt {
     text-align: center;
     padding: 60px 40px;
@@ -51,7 +59,8 @@
 
 .library-wrapper {
     display: flex;
-    min-height: calc(100vh - 80px);
+    height: 100%;
+    width: 100%;
     overflow: hidden;
 }
 
@@ -60,11 +69,13 @@
 .library-sidebar {
     width: 260px;
     min-width: 260px;
+    height: 100%;
     background: rgba(10, 12, 30, 0.95);
     border-right: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-bottom: 20px;
 }
 
@@ -254,9 +265,24 @@
 
 .library-content {
     flex: 1;
+    height: 100%;
     padding: 25px 30px 40px;
     overflow-y: auto;
+    overflow-x: hidden;
     min-width: 0;
+}
+
+.library-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.library-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+
+.library-content::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .library-content-header {

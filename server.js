@@ -201,7 +201,7 @@ app.get('/api/games/trending', async (req, res) => {
         console.log(`     - Date: ${game.released || 'N/A'}`);
       });
     } else {
-      console.warn('⚠️ AUCUN jeu trouvé ! Essai de fallback...');
+      console.warn('AUCUN jeu trouvé ! Essai de fallback...');
       
       // FALLBACK : si aucun jeu, utiliser une recherche sans filtre de date
       const fallbackResponse = await axios.get(`${RAWG_BASE_URL}/games`, {
@@ -410,7 +410,7 @@ app.get('/api/games/discover', async (req, res) => {
           const extraFiltered = applyPostFilters(extraGames);
           filteredGames = filteredGames.concat(extraFiltered);
         } catch (extraErr) {
-          console.warn(`⚠️ Extra fetch page ${rawgPage} failed:`, extraErr.message);
+          console.warn(`Extra fetch page ${rawgPage} failed:`, extraErr.message);
           break;
         }
       }
@@ -609,7 +609,7 @@ app.get('/api/games/vr-games', async (req, res) => {
           // Minimal 50ms pause inside each batch to respect rate limits
           await new Promise(r => setTimeout(r, 50));
         } catch (err) {
-          console.log(`  ⚠️ Échec recherche: ${gameName}`);
+          console.log(`  Échec recherche: ${gameName}`);
         }
       }
       return results;
@@ -966,9 +966,9 @@ async function refreshNewsCache() {
   // ========== PERSISTENCE: Save to database ==========
   try {
     const dbResult = await ArticleService.saveArticles(uniqueArticles);
-    console.log(`💾 Base de données: ${dbResult.inserted} nouveaux articles, ${dbResult.skipped} déjà existants`);
+    console.log(`Base de données: ${dbResult.inserted} nouveaux articles, ${dbResult.skipped} déjà existants`);
   } catch (dbError) {
-    console.error('⚠️ Erreur sauvegarde DB (le cache RAM reste disponible):', dbError.message);
+    console.error('Erreur sauvegarde DB (le cache RAM reste disponible):', dbError.message);
   }
   
   return uniqueArticles;
@@ -1005,7 +1005,7 @@ app.get('/api/news', async (req, res) => {
       allArticles.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
       console.log(`📊 Total servi: ${allArticles.length} articles (${newsCache.allArticles.length} cache + ${dbArticles.length} DB)`);
     } catch (dbError) {
-      console.warn('⚠️ DB indisponible, articles servis depuis le cache RAM uniquement:', dbError.message);
+      console.warn('DB indisponible, articles servis depuis le cache RAM uniquement:', dbError.message);
     }
     
     res.json(allArticles);
@@ -1017,7 +1017,7 @@ app.get('/api/news', async (req, res) => {
     try {
       const dbArticles = await ArticleService.getAllArticles(1000);
       if (dbArticles.length > 0) {
-        console.log(`🔄 Fallback DB: ${dbArticles.length} articles`);
+        console.log(`Fallback DB: ${dbArticles.length} articles`);
         return res.json(dbArticles);
       }
     } catch (e) { /* ignore */ }
@@ -1220,7 +1220,7 @@ app.get('/api/news/game/:gameName', async (req, res) => {
       });
     } catch (dbError) {
       // DB search failed, continue with what we have
-      console.warn('⚠️ Recherche DB articles pour jeu échouée:', dbError.message);
+      console.warn('Recherche DB articles pour jeu échouée:', dbError.message);
     }
 
     // ---- Deduplicate by title similarity ----
@@ -1271,16 +1271,16 @@ app.listen(PORT, async () => {
   console.log(`   - Guardian: ~50 articles`);
   console.log(`Capacité totale: ~1000 articles`);
   console.log(`Cache: 6 heures`);
-  console.log(`📦 Persistance: MySQL`);
+  console.log(`Persistance: MySQL`);
   console.log(`⏰ Scheduler: Récupération automatique toutes les 6h`);
   console.log('═══════════════════════════════════════════════');
   
   // Initialize articles database table
   try {
     const articleCount = await ArticleService.initialize();
-    console.log(`\n📦 Base de données articles initialisée (${articleCount} articles existants)`);
+    console.log(`\nBase de données articles initialisée (${articleCount} articles existants)`);
   } catch (error) {
-    console.error('⚠️ Erreur initialisation table articles:', error.message);
+    console.error('Erreur initialisation table articles:', error.message);
   }
   
   console.log('\nPré-chargement du cache...\n');
@@ -1295,10 +1295,10 @@ app.listen(PORT, async () => {
       if (dbArticles.length > 0) {
         newsCache.allArticles = dbArticles;
         newsCache.timestamp = Date.now();
-        console.log(`🔄 Fallback: ${dbArticles.length} articles chargés depuis la base de données`);
+        console.log(`Fallback: ${dbArticles.length} articles chargés depuis la base de données`);
       }
     } catch (dbError) {
-      console.error('⚠️ Fallback DB également échoué:', dbError.message);
+      console.error('Fallback DB également échoué:', dbError.message);
     }
   }
   

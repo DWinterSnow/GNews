@@ -1,5 +1,5 @@
 ﻿// Database Configuration - MySQL Connection Pool (optimized for Railway)
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const pool = mysql.createPool({
@@ -47,4 +47,4 @@ pool.getConnection((err, connection) => {
   }
 });
 
-module.exports = pool.promise();
+module.exports = pool;

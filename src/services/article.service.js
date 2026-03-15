@@ -7,14 +7,14 @@ class ArticleService {
   static async initialize() {
     try {
       await ArticleModel.ensureTable();
-      console.log('✅ Table articles prête');
+      console.log('Table articles prête');
       
       const count = await ArticleModel.count();
-      console.log(`📊 ${count} articles en base de données`);
+      console.log(`${count} articles en base de données`);
       
       return count;
     } catch (error) {
-      console.error('❌ Erreur initialisation articles:', error.message);
+      console.error('Erreur initialisation articles:', error.message);
       return 0;
     }
   }
@@ -25,11 +25,11 @@ class ArticleService {
       // Find articles in DB without game metadata
       const unenriched = await ArticleModel.getUnenriched(100);
       if (unenriched.length === 0) {
-        console.log('🎮 Tous les articles sont déjà enrichis');
+        console.log('Tous les articles sont déjà enrichis');
         return 0;
       }
       
-      console.log(`🎮 Enrichissement en cours: ${unenriched.length} articles sans métadonnées jeu...`);
+      console.log(`Enrichissement en cours: ${unenriched.length} articles sans métadonnées jeu...`);
       
       let enriched = 0;
       const batchSize = 5;
@@ -60,10 +60,10 @@ class ArticleService {
         }
       }
       
-      console.log(`🎮 Enrichissement terminé: ${enriched}/${unenriched.length} articles enrichis (cache: ${ArticleModel.getMetadataCacheSize()} jeux)`);
+      console.log(`Enrichissement terminé: ${enriched}/${unenriched.length} articles enrichis (cache: ${ArticleModel.getMetadataCacheSize()} jeux)`);
       return enriched;
     } catch (error) {
-      console.error('❌ Erreur enrichissement articles:', error.message);
+      console.error('Erreur enrichissement articles:', error.message);
       return 0;
     }
   }
@@ -74,18 +74,18 @@ class ArticleService {
     
     try {
       const result = await ArticleModel.bulkInsert(articles);
-      console.log(`💾 Articles sauvegardés: ${result.inserted} nouveaux, ${result.skipped} déjà existants`);
+      console.log(`Articles sauvegardés: ${result.inserted} nouveaux, ${result.skipped} déjà existants`);
       
       // Enrich new articles in background (don't await - fire and forget)
       if (result.inserted > 0) {
         this.enrichNewArticlesInBackground().catch(err => {
-          console.error('⚠️ Erreur enrichissement background:', err.message);
+          console.error('Erreur enrichissement background:', err.message);
         });
       }
       
       return result;
     } catch (error) {
-      console.error('❌ Erreur sauvegarde articles:', error.message);
+      console.error('Erreur sauvegarde articles:', error.message);
       return { inserted: 0, skipped: 0 };
     }
   }
@@ -96,7 +96,7 @@ class ArticleService {
       const rows = await ArticleModel.getAll(limit);
       return rows.map(row => this.formatForFrontend(row));
     } catch (error) {
-      console.error('❌ Erreur récupération articles:', error.message);
+      console.error('Erreur récupération articles:', error.message);
       return [];
     }
   }
@@ -107,7 +107,7 @@ class ArticleService {
       const rows = await ArticleModel.searchByGame(gameName, limit);
       return rows.map(row => this.formatForFrontend(row));
     } catch (error) {
-      console.error('❌ Erreur recherche articles pour jeu:', error.message);
+      console.error('Erreur recherche articles pour jeu:', error.message);
       return [];
     }
   }
